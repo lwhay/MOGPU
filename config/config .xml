@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+
+<config>
+
+<!--
+[period]
+period_len=1000
+period_num=11
+-->
+<period>
+	<period_len>1000</period_len>
+	<period_num>11</period_num>
+</period>
+
+
+<!--
+[region]
+region_xmin=120
+region_xmax=121
+region_ymin=30
+region_ymax=31
+-->
+<region>
+	<region_xmin>120</region_xmin>
+	<region_xmax>121</region_xmax>
+	<region_ymin>30</region_ymin>
+	<region_ymax>31</region_ymax>
+</region>
+
+
+<!--
+[data]
+max_obj_num=100000
+round_num=100
+max_query_num=1000000
+guassian_data=0
+uniform_data=1
+hotspot_num=10
+-->
+<data>
+	<max_obj_num>100000</max_obj_num>
+	<round_num>100</round_num>
+	<max_query_num>1000000</max_query_num>
+	<gaussian_data>0</gaussian_data>
+	<uniform_data>1</uniform_data>
+	<hotspot_num>10</hotspot_num>
+</data>
+
+<!--
+[cell]
+edge_cell_num=32
+-->
+<cell>
+	<edge_cell_num>32</edge_cell_num>
+</cell>
+
+
+<!--
+[struct]
+max_bucket_len=20
+buffer_block_size=1000
+-->
+<struct>
+	<max_bucket_len>20</max_bucket_len>
+	<buffer_block_size>1000</buffer_block_size>
+</struct>
+
+<!--
+[thread]
+thread_analysis_num=32
+thread_update_num=32
+block_query_num=4
+thread_query_num=32
+-->
+<thread>
+	<thread_analysis_num>32</thread_analysis_num>
+	<thread_update_num>32</thread_update_num>
+	<block_query_num>4</block_query_num>
+	<thread_query_num>32</thread_query_num>
+</thread>
+
+<!--
+[scheme]
+single_stream_mutual_access=0
+single_stream_parall_access=1
+multi_stream_parall_access=0
+multi_stream_parall_access_asynch=0
+update_query_same_thread=0
+open_correct_test=0
+-->
+<scheme>
+	<single_stream_mutual_access>0</single_stream_mutual_access>
+	<single_stream_para_access>1</single_stream_para_access>
+	<open_correct_test>0</open_correct_test>
+</scheme>
+
+</config>
