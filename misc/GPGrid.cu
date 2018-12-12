@@ -57,7 +57,7 @@ struct Message {
 };
 
 #ifdef linux
-unsigned int copyData(void *m) {
+void* copyData(void *m) {
 #else
 
 DWORD WINAPI copyData(void *m) {
