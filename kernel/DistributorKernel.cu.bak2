@@ -28,400 +28,444 @@
 #include "misc/QueryCacheArea.h"
 #include "misc/SyncFuncGPU.cuh"
 
-__global__ void DpProcess(UpdateType *buffer_update, int offset_buffer_update, SecIndex *local_seci, Grid *local_index, int len_seg_cache_update_local, int d_obj_pool_size, int tot_vgroup_update, int buffer_block_size_update, int *local_d, int *local_d_cnt, UpdateType *local_i, int *local_i_cnt, UpdateType *local_f, int *local_f_cnt){
-		int tid = threadIdx.x + blockIdx.x * blockDim.x;
-		//int buffer_block_size_update = p_config->buffer_block_size;
-		int anchor = tid;
-		int oid = -1;
-		SIEntry *p_sie = NULL;
-		Cell *p_cell_new = NULL;
-		Cell *p_cell_old = NULL;
-		UpdateType *ins_update;
-		int idx_bkt;
-		int idx_subgrid;
-		//int *local_d;
-		//int *local_d_cnt ;
-		//UpdateType *local_i;
-		//int *local_i_cnt;
-		//UpdateType *local_f;
-		//int *local_f_cnt;
-		int idx_d, idx_i, idx_f;
-		
-		while (anchor < buffer_block_size_update) 
-		{
-			ins_update = &buffer_update[offset_buffer_update + anchor];
-			oid = ins_update->oid;
-			p_sie = &(local_seci->index[oid]);   // p_sie refers to a SIEntry object; local_seci refers to a SecIndex object;
-			
-			if (p_sie->idx_cell >= 0)
-			{
-				p_cell_old = &local_index->arr_cell[p_sie->idx_cell];  //local_index refers to the Grid
-			}
-			else
-			{
-				p_cell_old = NULL;
-			}
+__global__ void DpProcess(UpdateType *buffer_update, int offset_buffer_update, SecIndex *local_seci, Grid *local_index,
+                          int len_seg_cache_update_local, int d_obj_pool_size, int tot_vgroup_update,
+                          int buffer_block_size_update, int *local_d, int *local_d_cnt, UpdateType *local_i,
+                          int *local_i_cnt, UpdateType *local_f, int *local_f_cnt) {
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    //int buffer_block_size_update = p_config->buffer_block_size;
+    int anchor = tid;
+    int oid = -1;
+    SIEntry * p_sie = NULL;
+    Cell *p_cell_new = NULL;
+    Cell *p_cell_old = NULL;
+    UpdateType *ins_update;
+    int idx_bkt;
+    int idx_subgrid;
+    //int *local_d;
+    //int *local_d_cnt ;
+    //UpdateType *local_i;
+    //int *local_i_cnt;
+    //UpdateType *local_f;
+    //int *local_f_cnt;
+    int idx_d, idx_i, idx_f;
 
-			float x = ins_update->x;
-			float y = ins_update->y;
+    while (anchor < buffer_block_size_update) {
+        ins_update = &buffer_update[offset_buffer_update + anchor];
+        oid = ins_update->oid;
+        p_sie = &(local_seci->index[oid]);   // p_sie refers to a SIEntry object; local_seci refers to a SecIndex object;
 
-			Rect* rect = &(local_index->rect);
-			int cell_num = local_index->cell_num;
-			Cell *arr_cell = local_index->arr_cell;
-			if(!rect->isCovering(x, y))
-			{
-				p_cell_new =  NULL;
-			}
-			else
-			{
-				int x_idx = ((float)x - rect->xmin) / rect->width * (float)cell_num;
-				int y_idx = (rect->ymax - (float)y) / rect->height * (float)cell_num;
-				p_cell_new =  arr_cell + y_idx * cell_num + x_idx;
-			}
+        if (p_sie->idx_cell >= 0) {
+            p_cell_old = &local_index->arr_cell[p_sie->idx_cell];  //local_index refers to the Grid
+        } else {
+            p_cell_old = NULL;
+        }
 
-			if ((p_cell_old != NULL) && (p_cell_old == p_cell_new))
-			{
-				idx_bkt = p_sie->idx_bkt;
-				idx_subgrid = (p_cell_old->arr_idx_bkt[idx_bkt]/(d_obj_pool_size-queue_bkts_free->cnt_elem))*tot_vgroup_update;
-				idx_f = atomicAdd(&local_f_cnt[ idx_subgrid ], 1);    //p_cell_new->subgrid refers to the Cell ID
-				local_f[ idx_subgrid * len_seg_cache_update_local + idx_f ] = *ins_update;
-			}
-			if ((p_cell_old != NULL) && (p_cell_old != p_cell_new))
-			{
-				idx_bkt = p_sie->idx_bkt;
-				idx_subgrid = (p_cell_old->arr_idx_bkt[idx_bkt]/(d_obj_pool_size-queue_bkts_free->cnt_elem))*tot_vgroup_update;
-				idx_subgrid = p_cell_old->subgrid;
-				idx_d = atomicAdd(&local_d_cnt[ idx_subgrid ], 1);
-				local_d[ idx_subgrid * len_seg_cache_update_local + idx_d ] = ins_update->oid;
-			}
-			if ((p_cell_new != NULL) && (p_cell_new != p_cell_old))
-			{
-				idx_bkt = p_cell_new->cnt_bkts - 1;
-				idx_subgrid = (p_cell_new->arr_idx_bkt[idx_bkt]/(d_obj_pool_size-queue_bkts_free->cnt_elem))*tot_vgroup_update;
-				//idx_subgrid = p_cell_new->subgrid;
-				idx_i = atomicAdd(&local_i_cnt[ idx_subgrid ], 1);
-				int temp = idx_subgrid * len_seg_cache_update_local + idx_i;
-				if(temp<16386000)
-					local_i[ p_cell_new->subgrid * len_seg_cache_update_local + idx_i ] = *ins_update;
-			}
-			anchor += blockDim.x * gridDim.x;
-		}
-		atomicAdd(&update_set_over,1);
+        float x = ins_update->x;
+        float y = ins_update->y;
+
+        Rect *rect = &(local_index->rect);
+        int cell_num = local_index->cell_num;
+        Cell *arr_cell = local_index->arr_cell;
+        if (!rect->isCovering(x, y)) {
+            p_cell_new = NULL;
+        } else {
+            int x_idx = ((float) x - rect->xmin) / rect->width * (float) cell_num;
+            int y_idx = (rect->ymax - (float) y) / rect->height * (float) cell_num;
+            p_cell_new = arr_cell + y_idx * cell_num + x_idx;
+        }
+
+        if ((p_cell_old != NULL) && (p_cell_old == p_cell_new)) {
+            idx_bkt = p_sie->idx_bkt;
+            idx_subgrid = (p_cell_old->arr_idx_bkt[idx_bkt] / (d_obj_pool_size - queue_bkts_free->cnt_elem)) *
+                          tot_vgroup_update;
+            idx_f = atomicAdd(&local_f_cnt[idx_subgrid], 1);    //p_cell_new->subgrid refers to the Cell ID
+            local_f[idx_subgrid * len_seg_cache_update_local + idx_f] = *ins_update;
+        }
+        if ((p_cell_old != NULL) && (p_cell_old != p_cell_new)) {
+            idx_bkt = p_sie->idx_bkt;
+            idx_subgrid = (p_cell_old->arr_idx_bkt[idx_bkt] / (d_obj_pool_size - queue_bkts_free->cnt_elem)) *
+                          tot_vgroup_update;
+            idx_subgrid = p_cell_old->subgrid;
+            idx_d = atomicAdd(&local_d_cnt[idx_subgrid], 1);
+            local_d[idx_subgrid * len_seg_cache_update_local + idx_d] = ins_update->oid;
+        }
+        if ((p_cell_new != NULL) && (p_cell_new != p_cell_old)) {
+            idx_bkt = p_cell_new->cnt_bkts - 1;
+            idx_subgrid = (p_cell_new->arr_idx_bkt[idx_bkt] / (d_obj_pool_size - queue_bkts_free->cnt_elem)) *
+                          tot_vgroup_update;
+            //idx_subgrid = p_cell_new->subgrid;
+            idx_i = atomicAdd(&local_i_cnt[idx_subgrid], 1);
+            int temp = idx_subgrid * len_seg_cache_update_local + idx_i;
+            if (temp < 16386000)
+                local_i[p_cell_new->subgrid * len_seg_cache_update_local + idx_i] = *ins_update;
+        }
+        anchor += blockDim.x * gridDim.x;
+    }
+    atomicAdd(&update_set_over, 1);
 }
 
-__global__ void DistributorKernel(GConfig *dev_p_gconfig, UpdateType *dev_buffer_update, int *dev_cnt_update, \
-		QueryType *dev_buffer_query, int *dev_cnt_query, ObjBox *d_obs_pool, \
-		int d_obj_pool_size, SIEntry *d_sie_array, UpdateCacheArea *d_req_cache_update, QueryCacheArea *d_req_cache_query, \
-		Grid *d_index_A, Grid *d_index_B, Cell **d_cell, Cell *d_arr_cell, CircularQueue *d_queue_bkts_free, UpdateTypeForSort* d_array_i_forsort)
+__global__ void DistributorKernel(GConfig * dev_p_gconfig, UpdateType * dev_buffer_update, int * dev_cnt_update, \
+        QueryType * dev_buffer_query, int * dev_cnt_query, ObjBox * d_obs_pool, \
+        int
+d_obj_pool_size,
+SIEntry *d_sie_array, UpdateCacheArea
+*d_req_cache_update,
+QueryCacheArea *d_req_cache_query, \
+ Grid
+*d_index_A,
+Grid *d_index_B, Cell
+**d_cell,
+Cell *d_arr_cell, CircularQueue
+*d_queue_bkts_free,
+UpdateTypeForSort *d_array_i_forsort
+)
 {
-	//QueryType *dev_buffer_query;
-	//UpdateType *dev_buffer_update;
-	//cudaHostGetDevicePointer((void **)&dev_buffer_update, (void *)pinned_buffer_update, 0);
-	//cudaHostGetDevicePointer((void **)&dev_buffer_update, (void *)pinned_buffer_update, 0);
-	//printf("%d\n", dev_p_gconfig->block_update_num);
+//QueryType *dev_buffer_query;
+//UpdateType *dev_buffer_update;
+//cudaHostGetDevicePointer((void **)&dev_buffer_update, (void *)pinned_buffer_update, 0);
+//cudaHostGetDevicePointer((void **)&dev_buffer_update, (void *)pinned_buffer_update, 0);
+//printf("%d\n", dev_p_gconfig->block_update_num);
 //printf("check point 1");
 
-	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-	const int tid_b = threadIdx.x;
-	const int bid = blockIdx.x;
-	const unsigned int barrier_step = gridDim.x;
-	unsigned int barrier_fence = 0;
-	int anchor = 0;
-	__shared__ int occupation[12288];
+const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+const int tid_b = threadIdx.x;
+const int bid = blockIdx.x;
+const unsigned int barrier_step = gridDim.x;
+unsigned int barrier_fence = 0;
+int anchor = 0;
+__shared__ int occupation[12288];
 
-	GConfig *p_config = dev_p_gconfig;
+GConfig *p_config = dev_p_gconfig;
 
-	//for debug
-	int check_dist_query_local = 0;
-	int check_tot_covered_local = 0;
-	int check_cnt_enqueue = 0;
-	int check_lb_null = 0;
-	int check_rt_null = 0;
-	// printf("%d\n", gp_config->block_analysis_num);
+//for debug
+int check_dist_query_local = 0;
+int check_tot_covered_local = 0;
+int check_cnt_enqueue = 0;
+int check_lb_null = 0;
+int check_rt_null = 0;
+// printf("%d\n", gp_config->block_analysis_num);
 
-    // Initialize global variables
-	if (tid == 0)
-	{
-		atomicExch(&barrier_dist, 0);
-		atomicExch(&launch_signal, 0);
+// Initialize global variables
+if (tid == 0)
+{
+atomicExch(&barrier_dist,
+0);
+atomicExch(&launch_signal,
+0);
 
-		gp_config = dev_p_gconfig;
-		atomicExch(&gp_config_ready, 1);
-		
-
-		//printf("%d\n", gp_config->block_analysis_num);
-		printf("Evaluate value of dev_buffer_update: %d %ef %ef %ef %ef %ef\n", dev_buffer_update[0].oid, dev_buffer_update[1].x, \
-				dev_buffer_update[2].y, dev_buffer_update[3].vx, dev_buffer_update[4].vy, dev_buffer_update[5].time);
-
-		counter_bucket = 0;
-		obs_pool = d_obs_pool;
-		sie_array = d_sie_array;
-		index_A = d_index_A;
-		index_B = d_index_B;
-
-		index_A->adjustPointer();
-		index_B->adjustPointer();
-
-		sec_index_A = new SecIndex();
-		sec_index_B = new SecIndex();
-		sec_index_A->index = sie_array;
-		sec_index_B->index = sie_array + dev_p_gconfig->max_obj_num;
-		flag_switch_dist = 0;
-		flag_switch_update = 0;
-		flag_switch_query = 0;
-
-		printf("Evaluate value of obs_pool: %d %f %f %f\n", obs_pool[0].oid, obs_pool[1].x, obs_pool[2].y, \
-				obs_pool[5].time);
-
-		len_seg_cache_update = p_config->len_seg_cache_update;
-		req_cache_update = d_req_cache_update;
-		//cudaMemcpyToSymbol(req_cache_update, d_req_cache_update, sizeof(UpdateCacheArea)*size_t(1), size_t(0), cudaMemcpyDeviceToDevice);
-		req_cache_query = d_req_cache_query;
-		cnt_enqueue_update = 0;
-		cnt_enqueue_query = 0;
-		exp_new_cell_null = 0;
-		exp_old_cell_null = 0;
-		exp_update_in_spec_cell = 0;
-		atomicExch(&buffer_exhausted, 0);
-
-		queue_bkts_free = d_queue_bkts_free;
-
-		int array_i_forsort_len = p_config->edge_cell_num * p_config->edge_cell_num * p_config->len_seg_cache_update;
-		//array_i_forsort = (UpdateTypeForSort*) malloc(sizeof(UpdateTypeForSort)*array_i_forsort_len);
-		array_i_forsort = d_array_i_forsort;
-		each_anchor_len = array_i_forsort_len/(gridDim.x*blockDim.x);
-		each_anchor_cnt = new int[gridDim.x*blockDim.x];
-	
-	//	printf("BusyKernel()... \n");
-	//	BusyKernel<<<p_config->block_busy_num, p_config->thread_busy_num>>>();
-	}
-
-	__syncthreads();
-	barrier_fence += barrier_step;
-	if (tid_b == 0)
-	{
-		atomicAdd(&barrier_dist, 1);
-		while (barrier_dist < barrier_fence)
-		{
-			;
-		}
-		printf("sync-1 over\n");
-
-	}
-	__syncthreads();
-	
+gp_config = dev_p_gconfig;
+atomicExch(&gp_config_ready,
+1);
 
 
-	int edge_cell_num = p_config->edge_cell_num;
-	int tot_cells = edge_cell_num * edge_cell_num;
-	int tot_vgroup_update = p_config->side_len_vgroup * p_config->side_len_vgroup;
+//printf("%d\n", gp_config->block_analysis_num);
+printf("Evaluate value of dev_buffer_update: %d %ef %ef %ef %ef %ef\n", dev_buffer_update[0].oid, dev_buffer_update[1].x, \
+                dev_buffer_update[2].y, dev_buffer_update[3].vx, dev_buffer_update[4].vy, dev_buffer_update[5].time);
+
+counter_bucket = 0;
+obs_pool = d_obs_pool;
+sie_array = d_sie_array;
+index_A = d_index_A;
+index_B = d_index_B;
+
+index_A->
+
+adjustPointer();
+
+index_B->
+
+adjustPointer();
+
+sec_index_A = new SecIndex();
+sec_index_B = new SecIndex();
+sec_index_A->
+index = sie_array;
+sec_index_B->
+index = sie_array + dev_p_gconfig->max_obj_num;
+flag_switch_dist = 0;
+flag_switch_update = 0;
+flag_switch_query = 0;
+
+printf("Evaluate value of obs_pool: %d %f %f %f\n", obs_pool[0].oid, obs_pool[1].x, obs_pool[2].y, \
+                obs_pool[5].time);
+
+len_seg_cache_update = p_config->len_seg_cache_update;
+req_cache_update = d_req_cache_update;
+//cudaMemcpyToSymbol(req_cache_update, d_req_cache_update, sizeof(UpdateCacheArea)*size_t(1), size_t(0), cudaMemcpyDeviceToDevice);
+req_cache_query = d_req_cache_query;
+cnt_enqueue_update = 0;
+cnt_enqueue_query = 0;
+exp_new_cell_null = 0;
+exp_old_cell_null = 0;
+exp_update_in_spec_cell = 0;
+atomicExch(&buffer_exhausted,
+0);
+
+queue_bkts_free = d_queue_bkts_free;
+
+int array_i_forsort_len = p_config->edge_cell_num * p_config->edge_cell_num * p_config->len_seg_cache_update;
+//array_i_forsort = (UpdateTypeForSort*) malloc(sizeof(UpdateTypeForSort)*array_i_forsort_len);
+array_i_forsort = d_array_i_forsort;
+each_anchor_len = array_i_forsort_len / (gridDim.x * blockDim.x);
+each_anchor_cnt = new int[gridDim.x * blockDim.x];
+
+//	printf("BusyKernel()... \n");
+//	BusyKernel<<<p_config->block_busy_num, p_config->thread_busy_num>>>();
+}
+
+__syncthreads();
+
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
+printf("sync-1 over\n");
+
+}
+
+__syncthreads();
 
 
-	Grid *local_index = NULL;
-	SecIndex *local_seci = NULL;
-	UpdateType *buffer_update = dev_buffer_update;
-	QueryType *buffer_query = dev_buffer_query, *p_buffer_block_query, req_query;
+int edge_cell_num = p_config->edge_cell_num;
+int tot_cells = edge_cell_num * edge_cell_num;
+int tot_vgroup_update = p_config->side_len_vgroup * p_config->side_len_vgroup;
 
-	int offset_buffer_update = 0, offset_buffer_query = 0;
-	int total_update = p_config->max_obj_num * p_config->round_num, total_query = p_config->max_query_num;
 
-	int buffer_block_size_update = p_config->buffer_block_size;
-	int buffer_block_size_query = (int)((double)p_config->buffer_block_size *(double) p_config->max_query_num / \
-			((double)p_config->max_obj_num * (double)p_config->round_num));
-	int len_seg_cache_query = p_config->len_seg_cache_query;
+Grid *local_index = NULL;
+SecIndex *local_seci = NULL;
+UpdateType *buffer_update = dev_buffer_update;
+QueryType *buffer_query = dev_buffer_query, *p_buffer_block_query, req_query;
+
+int offset_buffer_update = 0, offset_buffer_query = 0;
+int total_update = p_config->max_obj_num * p_config->round_num, total_query = p_config->max_query_num;
+
+int buffer_block_size_update = p_config->buffer_block_size;
+int buffer_block_size_query = (int) ((double) p_config->buffer_block_size * (double) p_config->max_query_num / \
+            ((double) p_config->max_obj_num * (double) p_config->round_num));
+int len_seg_cache_query = p_config->len_seg_cache_query;
 //	int len_seg_cache_query = 1000;
 
-	int *local_d;
-	int *local_d_cnt ;
-	UpdateType *local_i;
-	int *local_i_cnt;
-	UpdateType *local_f;
-	int *local_f_cnt;
+int *local_d;
+int *local_d_cnt;
+UpdateType *local_i;
+int *local_i_cnt;
+UpdateType *local_f;
+int *local_f_cnt;
 
-	int idx_d, idx_i, idx_f;
+int idx_d, idx_i, idx_f;
 
-	Cell *p_cell_new = NULL;
-	Cell *p_cell_old = NULL;
-	Cell *p_cell_marked = NULL;
-	int len_seg_cache_update_local = len_seg_cache_update;
+Cell *p_cell_new = NULL;
+Cell *p_cell_old = NULL;
+Cell *p_cell_marked = NULL;
+int len_seg_cache_update_local = len_seg_cache_update;
 
-	int oid = -1;
-	SIEntry *p_sie = NULL;
+int oid = -1;
+SIEntry *p_sie = NULL;
 
-	int idx_query = 0, idx_cell = 0, idx_tmp = 0, idx_tmp_0 = 0;
-	Grid *p_grid = NULL;
-	Cell *p_cell_rt = NULL, *p_cell_lb = NULL;
-	UpdateType* ins_update;
+int idx_query = 0, idx_cell = 0, idx_tmp = 0, idx_tmp_0 = 0;
+Grid *p_grid = NULL;
+Cell *p_cell_rt = NULL, *p_cell_lb = NULL;
+UpdateType *ins_update;
 
-	int left_bottom;
-	int right_top;
-	int cell_num;
-	int row_start;
-	int col_end;
-	int row_end;
-	int col_start;
+int left_bottom;
+int right_top;
+int cell_num;
+int row_start;
+int col_end;
+int row_end;
+int col_start;
 
-	float xmin, ymin, xmax, ymax;
+float xmin, ymin, xmax, ymax;
 
 
-	QueryQNode *node_enqueue_query_local = NULL;
-	int tot_cells_covered = 0;
-	int *flag_cells_covered = NULL;
-	int *idx_cells_covered = NULL;
-	int *cnt_queries_per_cell = NULL;
-	int *queries_per_cell = NULL;
-	int *bound_btw_cell = NULL;
+QueryQNode *node_enqueue_query_local = NULL;
+int tot_cells_covered = 0;
+int *flag_cells_covered = NULL;
+int *idx_cells_covered = NULL;
+int *cnt_queries_per_cell = NULL;
+int *queries_per_cell = NULL;
+int *bound_btw_cell = NULL;
 //	int *offset_in_cell = NULL;
 //	int *cell_mask_obs = NULL;
-	QueryType *buffer_block_query = NULL;
+QueryType *buffer_block_query = NULL;
 
 
-	if (tid == 0)
-	{
-		atomicExch(&launch_signal, 1);
-	}
+if (tid == 0)
+{
+atomicExch(&launch_signal,
+1);
+}
 
-	__syncthreads();
-	barrier_fence += barrier_step;
-	if (tid_b == 0)
-	{
-		atomicAdd(&barrier_dist, 1);
-		while (barrier_dist < barrier_fence)
-		{
-			;
-		}
-		printf("sync-2 over\n");
+__syncthreads();
 
-	}
-	__syncthreads();
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
+printf("sync-2 over\n");
+
+}
+
+__syncthreads();
 
 if(tid == 0){
-                        atomicExch(&req_cache_update->token0, 0);
-                        atomicExch(&req_cache_update->token1, 0);
-                        atomicExch(&req_cache_query->token0,0);
-                        atomicExch(&req_cache_query->token1,0);
-                }
-	int gs = 10;
-	int bs = 512;
-	while (offset_buffer_update < total_update)
-	{
-		// Distribute Updates
-		if (offset_buffer_update + buffer_block_size_update >= total_update)
-		{
-			buffer_block_size_update = total_update - offset_buffer_update;
-		}
+atomicExch(&req_cache_update
+->token0, 0);
+atomicExch(&req_cache_update
+->token1, 0);
+atomicExch(&req_cache_query
+->token0,0);
+atomicExch(&req_cache_query
+->token1,0);
+}
+int gs = 10;
+int bs = 512;
+while (offset_buffer_update<total_update)
+{
+// Distribute Updates
+if (offset_buffer_update + buffer_block_size_update >= total_update)
+{
+buffer_block_size_update = total_update - offset_buffer_update;
+}
 
-		__syncthreads();
-		barrier_fence += barrier_step;
-		if (tid_b == 0)
-		{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-				;
-		}
-		__syncthreads();
-		
-	//	if(tid == 0){
-	//		atomicExch(&req_cache_update->token0, 0);
-	//		atomicExch(&req_cache_update->token1, 0);
-	//		atomicExch(&req_cache_query->token0,0);
-	//		atomicExch(&req_cache_query->token1,0);
-	//	}
+__syncthreads();
 
-		__syncthreads();
-        barrier_fence += barrier_step;
-        if (tid_b == 0)
-	    {
-		    atomicAdd(&barrier_dist, 1);
-	        while (barrier_dist < barrier_fence)
-				;
-		}
-		__syncthreads();
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence);
+}
 
-		atomicExch(&exp_hunger_dist_old, exp_hunger_dist0);
-		while (req_cache_update->token0 == 1 && req_cache_update->token1 == 1)
-		{
-			if (tid == 0) exp_hunger_dist0++;
-		}
+__syncthreads();
 
-		if (tid == 0)
-		{
-			if (req_cache_update->token0 == 0)
-			{
-				node_enqueue_update = &req_cache_update->array[0];
-				flag_switch_dist = 0;
-			}
-			else if (req_cache_update->token1 == 0)
-			{
-				node_enqueue_update = &req_cache_update->array[1];
-				flag_switch_dist = 1;
-			}
-		}
+//	if(tid == 0){
+//		atomicExch(&req_cache_update->token0, 0);
+//		atomicExch(&req_cache_update->token1, 0);
+//		atomicExch(&req_cache_query->token0,0);
+//		atomicExch(&req_cache_query->token1,0);
+//	}
 
-		__syncthreads();
-		barrier_fence += barrier_step;
-		if (tid_b == 0)
-		{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-			{
-				;
-			}
+__syncthreads();
 
-		}
-		__syncthreads();
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence);
+}
 
+__syncthreads();
 
-		if (flag_switch_dist == 0)
-		{
-			local_index = index_A;
-			local_seci = sec_index_A;
-		}
-		else if(flag_switch_dist == 1)
-		{
-			local_index = index_B;
-			local_seci = sec_index_B;
-		}
+atomicExch(&exp_hunger_dist_old, exp_hunger_dist0
+);
+while (req_cache_update->token0 == 1 && req_cache_update->token1 == 1)
+{
+if (tid == 0) exp_hunger_dist0++;
+}
 
+if (tid == 0)
+{
+if (req_cache_update->token0 == 0)
+{
+node_enqueue_update = &req_cache_update->array[0];
+flag_switch_dist = 0;
+}
+else if (req_cache_update->token1 == 0)
+{
+node_enqueue_update = &req_cache_update->array[1];
+flag_switch_dist = 1;
+}
+}
 
-		local_d = node_enqueue_update->mtx_delete;  //local_d refers to Delete Cache Area(oid1, oid2,...,oidn), local_d_cnt refers to its  oid num;
-		local_d_cnt = node_enqueue_update->sum_d;
-		local_i = node_enqueue_update->mtx_insert;  //local_i refers to Insert Cache Area(req1, req2,..., reqn), local_i_cnt refers to its request num;
-		local_i_cnt = node_enqueue_update->sum_i;
-		local_f = node_enqueue_update->mtx_fresh;   //local_f refers to Fresh Cache Area(req1, req2,..., reqn), local_f_cnt refers to its request num;
-		local_f_cnt = node_enqueue_update->sum_f;
+__syncthreads();
 
-		anchor = tid;
-		while (anchor < tot_vgroup_update)
-		{
-			local_d_cnt[anchor] = 0;
-			local_i_cnt[anchor] = 0;
-			local_f_cnt[anchor] = 0;
-			anchor += blockDim.x * gridDim.x;
-		}
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
 
-		__syncthreads();
-		barrier_fence += barrier_step;
-		if (tid_b == 0)
-		{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-			{
-				;
-			}
+}
 
-		}
-		__syncthreads();
+__syncthreads();
 
 
-		//sort per 2048;
-	//	int sort_size = 2048*5;
-	//	anchor = bid;
-	//	float factor_a = 1.0/((&(local_index->rect))->height);
-	//	float factor_b = ((float)local_index->cell_num)/((&(local_index->rect))->width);
-	//	UpdateType cache_one;
-	//	while(anchor*sort_size<buffer_block_size_update){
-	//		UpdateType *local_buffer_update = buffer_update + anchor*sort_size;   
+if (flag_switch_dist == 0)
+{
+local_index = index_A;
+local_seci = sec_index_A;
+}
+else if(flag_switch_dist == 1)
+{
+local_index = index_B;
+local_seci = sec_index_B;
+}
+
+
+local_d = node_enqueue_update->mtx_delete;  //local_d refers to Delete Cache Area(oid1, oid2,...,oidn), local_d_cnt refers to its  oid num;
+local_d_cnt = node_enqueue_update->sum_d;
+local_i = node_enqueue_update->mtx_insert;  //local_i refers to Insert Cache Area(req1, req2,..., reqn), local_i_cnt refers to its request num;
+local_i_cnt = node_enqueue_update->sum_i;
+local_f = node_enqueue_update->mtx_fresh;   //local_f refers to Fresh Cache Area(req1, req2,..., reqn), local_f_cnt refers to its request num;
+local_f_cnt = node_enqueue_update->sum_f;
+
+anchor = tid;
+while (anchor<tot_vgroup_update)
+{
+local_d_cnt[anchor] = 0;
+local_i_cnt[anchor] = 0;
+local_f_cnt[anchor] = 0;
+anchor += blockDim.
+x *gridDim
+.
+x;
+}
+
+__syncthreads();
+
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
+
+}
+
+__syncthreads();
+
+
+//sort per 2048;
+//	int sort_size = 2048*5;
+//	anchor = bid;
+//	float factor_a = 1.0/((&(local_index->rect))->height);
+//	float factor_b = ((float)local_index->cell_num)/((&(local_index->rect))->width);
+//	UpdateType cache_one;
+//	while(anchor*sort_size<buffer_block_size_update){
+//		UpdateType *local_buffer_update = buffer_update + anchor*sort_size;
 //
 //			if((anchor+1)*sort_size > buffer_block_size_update){
 //				sort_size = buffer_block_size_update-anchor*sort_size;
@@ -444,228 +488,266 @@ if(tid == 0){
 //
 //			anchor += gridDim.x;
 //		}
-		//anchor = tid;
-		//while(anchor<buffer_block_size_update){
-					
-		//}
+//anchor = tid;
+//while(anchor<buffer_block_size_update){
+
+//}
 
 
-		//each_anchor_cnt[tid]=0;
-		anchor = tid;
-		//int anchor_cnt = 0;
-		//UpdateTypeForSort* local_array_i_forsort = array_i_forsort + bid*blockDim.x * each_anchor_len;
-		int idx_bkt;
-		int idx_subgrid;
-		int dops =  d_obj_pool_size;
-		
-		
-		if(tid == 0){
-			if(exp_hunger_dist0-exp_hunger_dist_old > exp_hunger_update - exp_hunger_update_old){
-				gs = 2;
-				printf("+");
-			}else{
-				gs = 10;
-				printf("-");
-			}
-			gs = 4;
-			DpProcess<<<gs, bs>>>(buffer_update, offset_buffer_update, local_seci, local_index, len_seg_cache_update_local, dops, tot_vgroup_update, buffer_block_size_update,local_d, local_d_cnt, local_i, local_i_cnt, local_f, local_f_cnt);
-			cudaDeviceSynchronize();
-			while(update_set_over< gs * bs){
-				;
-			}
-			atomicExch(&update_set_over, 0);
-			//offset_buffer_update += buffer_block_size_update; 
-		}
-		__syncthreads();
-		barrier_fence += barrier_step;
-			if (tid_b == 0)
-			{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-			{
-				;
-			}
-		}
-		__syncthreads();
-
-		
-		//if(tid == 0)
-			//atomicExch(&update_set_over, 0);
-		offset_buffer_update += buffer_block_size_update;
-		
+//each_anchor_cnt[tid]=0;
+anchor = tid;
+//int anchor_cnt = 0;
+//UpdateTypeForSort* local_array_i_forsort = array_i_forsort + bid*blockDim.x * each_anchor_len;
+int idx_bkt;
+int idx_subgrid;
+int dops = d_obj_pool_size;
 
 
-		barrier_fence += barrier_step;
-		if (tid_b == 0)
-		{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-			{
-				;
-			}
+if(tid == 0){
+if(exp_hunger_dist0-exp_hunger_dist_old > exp_hunger_update - exp_hunger_update_old){
+gs = 2;
+printf("+");
+}else{
+gs = 10;
+printf("-");
+}
+gs = 4;
+DpProcess<<<gs, bs>>>(buffer_update, offset_buffer_update, local_seci, local_index, len_seg_cache_update_local, dops, tot_vgroup_update, buffer_block_size_update,local_d, local_d_cnt, local_i, local_i_cnt, local_f, local_f_cnt);
 
-		}
-		__syncthreads();
+cudaDeviceSynchronize();
+
+while(update_set_over<gs * bs){ ;
+}
+atomicExch(&update_set_over,
+0);
+//offset_buffer_update += buffer_block_size_update;
+}
+
+__syncthreads();
+
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
+}
+
+__syncthreads();
 
 
-		continue;
+//if(tid == 0)
+//atomicExch(&update_set_over, 0);
+offset_buffer_update +=
+buffer_block_size_update;
 
-		// ------------------------------------------------------------------------------------------------------------
-		// Distribute Queries
 
-		if (offset_buffer_query + buffer_block_size_query >= total_query)
-		{
-			buffer_block_size_query = total_query - offset_buffer_query;
-		}
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
+
+}
+
+__syncthreads();
+
+
+continue;
+
+// ------------------------------------------------------------------------------------------------------------
+// Distribute Queries
+
+if (offset_buffer_query + buffer_block_size_query >= total_query)
+{
+buffer_block_size_query = total_query - offset_buffer_query;
+}
 //		while ((req_cache_query->token0 == 1) && (req_cache_query->token1 == 1))
 //		{
 //			if (tid == 0) exp_hunger_dist1++;
 //		}
 
-		if (flag_switch_dist == 0)
-		{
-			while (req_cache_query->token0 == 1)
-			{
-				if (tid == 0) exp_hunger_dist1++;
-			}
-		}
-		else if(flag_switch_dist == 1)
-		{
-			while (req_cache_query->token1 == 1)
-			{
-				if (tid == 0) exp_hunger_dist1++;
-			}
-		}
+if (flag_switch_dist == 0)
+{
+while (req_cache_query->token0 == 1)
+{
+if (tid == 0) exp_hunger_dist1++;
+}
+}
+else if(flag_switch_dist == 1)
+{
+while (req_cache_query->token1 == 1)
+{
+if (tid == 0) exp_hunger_dist1++;
+}
+}
 
-		if (tid == 0)
-		{
-			if (flag_switch_dist == 0)
-			{
-				node_enqueue_query = &req_cache_query->array[0];
-			}
-			else if (flag_switch_dist == 1)
-			{
-				node_enqueue_query = &req_cache_query->array[1];
-			}
-			node_enqueue_query->tot_cells_covered = 0;
-			node_enqueue_query->bound_btw_cell[0] = 0;
-			node_enqueue_query->buffer_block_size_query = buffer_block_size_query;
-			atomicExch(&check_tot_covered, 0);
-			atomicExch(&cnt_singular, 0);
-		}
+if (tid == 0)
+{
+if (flag_switch_dist == 0)
+{
+node_enqueue_query = &req_cache_query->array[0];
+}
+else if (flag_switch_dist == 1)
+{
+node_enqueue_query = &req_cache_query->array[1];
+}
+node_enqueue_query->
+tot_cells_covered = 0;
+node_enqueue_query->bound_btw_cell[0] = 0;
+node_enqueue_query->
+buffer_block_size_query = buffer_block_size_query;
+atomicExch(&check_tot_covered,
+0);
+atomicExch(&cnt_singular,
+0);
+}
 
-		__syncthreads();
-		barrier_fence += barrier_step;
-		if (tid_b == 0)
-		{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-			{
-				;
-			}
+__syncthreads();
 
-		}
-		__syncthreads();
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
+
+}
+
+__syncthreads();
 
 
-		node_enqueue_query_local = node_enqueue_query;
-		flag_cells_covered = node_enqueue_query_local->flag_cells_covered;
-		idx_cells_covered = node_enqueue_query_local->idx_cells_covered;
-		cnt_queries_per_cell = node_enqueue_query_local->cnt_queries_per_cell;
-		queries_per_cell = node_enqueue_query_local->queries_per_cell;
-		bound_btw_cell = node_enqueue_query_local->bound_btw_cell;
+node_enqueue_query_local = node_enqueue_query;
+flag_cells_covered = node_enqueue_query_local->flag_cells_covered;
+idx_cells_covered = node_enqueue_query_local->idx_cells_covered;
+cnt_queries_per_cell = node_enqueue_query_local->cnt_queries_per_cell;
+queries_per_cell = node_enqueue_query_local->queries_per_cell;
+bound_btw_cell = node_enqueue_query_local->bound_btw_cell;
 //		offset_in_cell = node_enqueue_query_local->offset_in_cell;
 //		cell_mask_obs = node_enqueue_query_local->cell_mask_obs;
-		buffer_block_query = node_enqueue_query_local->buffer_block_query;
+buffer_block_query = node_enqueue_query_local->buffer_block_query;
 
-		if (flag_switch_dist == 0)
-		{
-			p_grid = index_A;
-		}
-		else if (flag_switch_dist == 1)
-		{
-			p_grid = index_B;
-		}
+if (flag_switch_dist == 0)
+{
+p_grid = index_A;
+}
+else if (flag_switch_dist == 1)
+{
+p_grid = index_B;
+}
 
-		anchor = tid;
-		while (anchor < tot_cells)
-		{
-			cnt_queries_per_cell[anchor] = 0;
-			anchor += blockDim.x * gridDim.x;
-		}
+anchor = tid;
+while (anchor<tot_cells)
+{
+cnt_queries_per_cell[anchor] = 0;
+anchor += blockDim.
+x *gridDim
+.
+x;
+}
 
-		__syncthreads();
-		barrier_fence += barrier_step;
-		if (tid_b == 0)
-		{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-			{
-				;
-			}
+__syncthreads();
 
-		}
-		__syncthreads();
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
+
+}
+
+__syncthreads();
 
 
-		anchor = tid;
-		p_buffer_block_query = buffer_query + offset_buffer_query;
+anchor = tid;
+p_buffer_block_query = buffer_query + offset_buffer_query;
 
-		while (anchor < buffer_block_size_query)
-		{
+while (anchor<buffer_block_size_query)
+{
 //			idx_query = offset_buffer_query + anchor;
-			req_query = p_buffer_block_query[anchor];
+req_query = p_buffer_block_query[anchor];
 
-			xmin = req_query.minX;
-			ymin = req_query.minY;
-			xmax = req_query.maxX;
-			ymax = req_query.maxY;
+xmin = req_query.minX;
+ymin = req_query.minY;
+xmax = req_query.maxX;
+ymax = req_query.maxY;
 
-			p_cell_lb = p_grid->getCellByXY(xmin,ymin);
-			if (p_cell_lb == NULL)
-			{
-				check_lb_null++;
-				p_cell_lb = p_grid->getCellByRC(p_config->edge_cell_num - 1, 0);
-			}
+p_cell_lb = p_grid->getCellByXY(xmin, ymin);
+if (p_cell_lb == NULL)
+{
+check_lb_null++;
+p_cell_lb = p_grid->getCellByRC(p_config->edge_cell_num - 1, 0);
+}
 
-			p_cell_rt = p_grid->getCellByXY(xmax,ymax);
-			if (p_cell_rt == NULL)
-			{
-				check_rt_null++;
-				p_cell_rt = p_grid->getCellByRC(0, p_config->edge_cell_num - 1);
-			}
+p_cell_rt = p_grid->getCellByXY(xmax, ymax);
+if (p_cell_rt == NULL)
+{
+check_rt_null++;
+p_cell_rt = p_grid->getCellByRC(0, p_config->edge_cell_num - 1);
+}
 
-		    left_bottom = p_cell_lb->idx;
-		    right_top = p_cell_rt->idx;
-		    cell_num = p_grid->cell_num;
-		    row_start = right_top / cell_num;
-		    col_end = right_top % cell_num;
-		    row_end = left_bottom / cell_num;
-		    col_start = left_bottom % cell_num;
+left_bottom = p_cell_lb->idx;
+right_top = p_cell_rt->idx;
+cell_num = p_grid->cell_num;
+row_start = right_top / cell_num;
+col_end = right_top % cell_num;
+row_end = left_bottom / cell_num;
+col_start = left_bottom % cell_num;
 
 
 //		    local_check_tot_covered = 0;
 
-		    for (int i = row_start; i <= row_end; i++)
-		    {
-		    	for (int j = col_start; j <= col_end; j++)
-		    	{
-		    		idx_cell = i * edge_cell_num + j;
-		    		p_cell_marked = &p_grid->arr_cell[idx_cell];
-			    	idx_tmp = atomicAdd(&cnt_queries_per_cell[idx_cell], 1);
+for (
+int i = row_start;
+i <=
+row_end;
+i++)
+{
+for (
+int j = col_start;
+j <=
+col_end;
+j++)
+{
+idx_cell = i * edge_cell_num + j;
+p_cell_marked = &p_grid->arr_cell[idx_cell];
+idx_tmp = atomicAdd(&cnt_queries_per_cell[idx_cell], 1);
 
-			    	if (atomicCAS(&flag_cells_covered[idx_cell], 0, 1) == 0)
-			    	{
-			    		atomicExch(&flag_cells_covered[idx_cell], 1);
-			    		idx_tmp_0 = atomicAdd(&node_enqueue_query_local->tot_cells_covered, 1);
-						idx_cells_covered[idx_tmp_0] = idx_cell;
-						bound_btw_cell[idx_tmp_0 + 1] = p_cell_marked->tot_obs;
-			    	}
-			    	atomicAdd(&check_tot_covered, 1);
-			    	queries_per_cell[idx_cell * len_seg_cache_query + idx_tmp] = anchor;
+if (
+atomicCAS(&flag_cells_covered[idx_cell],
+0, 1) == 0)
+{
+atomicExch(&flag_cells_covered[idx_cell],
+1);
+idx_tmp_0 = atomicAdd(&node_enqueue_query_local->tot_cells_covered, 1);
+idx_cells_covered[idx_tmp_0] =
+idx_cell;
+bound_btw_cell[idx_tmp_0 + 1] = p_cell_marked->
+tot_obs;
+}
+atomicAdd(&check_tot_covered,
+1);
+queries_per_cell[
+idx_cell *len_seg_cache_query
++ idx_tmp] =
+anchor;
 
-		    	}
-		    }
+}
+}
 
 //		    if (local_check_tot_covered > check_area_per_query)
 //		    {
@@ -676,26 +758,33 @@ if(tid == 0){
 //		    {
 //		    	atomicAdd(&cnt_singular, 1);
 //		    }
-		    buffer_block_query[anchor] = req_query;
-		    check_dist_query_local++;
+buffer_block_query[anchor] =
+req_query;
+check_dist_query_local++;
 
-			anchor += blockDim.x * gridDim.x;
-		}
+anchor += blockDim.
+x *gridDim
+.
+x;
+}
 
-		check_cnt_enqueue++;
+check_cnt_enqueue++;
 
-		__syncthreads();
-		barrier_fence += barrier_step;
-		if (tid_b == 0)
-		{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-			{
-				;
-			}
+__syncthreads();
 
-		}
-		__syncthreads();
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
+
+}
+
+__syncthreads();
 
 //		anchor = tid;
 //		while(anchor < tot_cells_covered)
@@ -718,74 +807,91 @@ if(tid == 0){
 //		__syncthreads();
 
 
-		if (tid == 0)
-		{
-			printf("d");
-			if (flag_switch_dist == 0)
-			{
-				atomicExch(&req_cache_update->token0, 1);
-				atomicExch(&req_cache_update->cnt0, cnt_enqueue_update);
-				atomicExch(&req_cache_query->token0, 1);
-				atomicExch(&req_cache_query->cnt0, cnt_enqueue_query);
-			}
-			if (flag_switch_dist == 1)
-			{
-				atomicExch(&req_cache_update->token1, 1);
-				atomicExch(&req_cache_update->cnt1, cnt_enqueue_update);
-				atomicExch(&req_cache_query->token1, 1);
-				atomicExch(&req_cache_query->cnt1, cnt_enqueue_query);
-			}
-			node_enqueue_update = NULL;
-			node_enqueue_query = NULL;
-			atomicAdd(&cnt_enqueue_update, 1);
-			atomicAdd(&cnt_enqueue_query, 1);
-		}
-		offset_buffer_query += buffer_block_size_query;
+if (tid == 0)
+{
+printf("d");
+if (flag_switch_dist == 0)
+{
+atomicExch(&req_cache_update
+->token0, 1);
+atomicExch(&req_cache_update
+->cnt0, cnt_enqueue_update);
+atomicExch(&req_cache_query
+->token0, 1);
+atomicExch(&req_cache_query
+->cnt0, cnt_enqueue_query);
+}
+if (flag_switch_dist == 1)
+{
+atomicExch(&req_cache_update
+->token1, 1);
+atomicExch(&req_cache_update
+->cnt1, cnt_enqueue_update);
+atomicExch(&req_cache_query
+->token1, 1);
+atomicExch(&req_cache_query
+->cnt1, cnt_enqueue_query);
+}
+node_enqueue_update = NULL;
+node_enqueue_query = NULL;
+atomicAdd(&cnt_enqueue_update,
+1);
+atomicAdd(&cnt_enqueue_query,
+1);
+}
+offset_buffer_query +=
+buffer_block_size_query;
 
 
-		__syncthreads();
-		barrier_fence += barrier_step;
-		if (tid_b == 0)
-		{
-			atomicAdd(&barrier_dist, 1);
-			while (barrier_dist < barrier_fence)
-			{
-				;
-			}
+__syncthreads();
 
-		}
-		__syncthreads();
+barrier_fence +=
+barrier_step;
+if (tid_b == 0)
+{
+atomicAdd(&barrier_dist,
+1);
+while (barrier_dist<barrier_fence)
+{ ;
+}
 
-	}
-	if (tid == 0)
-	{
-		*dev_cnt_update = offset_buffer_update;
-		*dev_cnt_query = offset_buffer_query;
-		atomicExch(&buffer_exhausted, 1);
+}
 
-		printf("\n");
-		printf("len_seg_cache_update_local: %d\n", len_seg_cache_update_local);
-		printf("cnt_enqueue_update: %d\n", cnt_enqueue_update);
-		printf("cnt_enqueue_query: %d\n", cnt_enqueue_query);
-		printf("exp_hunger_dist0: %d\n", exp_hunger_dist0);
-		printf("exp_hunger_dist1: %d\n", exp_hunger_dist1);
-		printf("offset_buffer_update: %d\n", offset_buffer_update);
-		printf("dev_cnt_update: %d\n", *dev_cnt_update);
-		printf("offset_buffer_query: %d\n", offset_buffer_query);
-		printf("dev_cnt_query: %d\n", *dev_cnt_query);
-		printf("len_seg_cache_query in Distribute Kernel: %d\n", len_seg_cache_query);
-		printf("buffer_block_size_update: %d\n", buffer_block_size_update);
-		printf("buffer_block_size_query: %d\n", buffer_block_size_query);
+__syncthreads();
 
-		printf("exp_new_cell_null: %d\n", exp_new_cell_null);
-		printf("exp_update_in_spec_cell: %d\n", exp_update_in_spec_cell);
-		printf("exp_old_cell_null: %d\n", exp_old_cell_null);
+}
+if (tid == 0)
+{
+*
+dev_cnt_update = offset_buffer_update;
+*
+dev_cnt_query = offset_buffer_query;
+atomicExch(&buffer_exhausted,
+1);
 
-		printf("check_tot_covered: %d %d\n", check_tot_covered /cnt_enqueue_query, cnt_enqueue_query);
-		printf("check_dist_query_local: %d\n", check_dist_query_local);
-		printf("check_cnt_enqueue: %d\n", check_cnt_enqueue);
-		printf("check_lb_null: %d\n", check_lb_null);
-		printf("check_rt_null: %d\n", check_rt_null);
+printf("\n");
+printf("len_seg_cache_update_local: %d\n", len_seg_cache_update_local);
+printf("cnt_enqueue_update: %d\n", cnt_enqueue_update);
+printf("cnt_enqueue_query: %d\n", cnt_enqueue_query);
+printf("exp_hunger_dist0: %d\n", exp_hunger_dist0);
+printf("exp_hunger_dist1: %d\n", exp_hunger_dist1);
+printf("offset_buffer_update: %d\n", offset_buffer_update);
+printf("dev_cnt_update: %d\n", *dev_cnt_update);
+printf("offset_buffer_query: %d\n", offset_buffer_query);
+printf("dev_cnt_query: %d\n", *dev_cnt_query);
+printf("len_seg_cache_query in Distribute Kernel: %d\n", len_seg_cache_query);
+printf("buffer_block_size_update: %d\n", buffer_block_size_update);
+printf("buffer_block_size_query: %d\n", buffer_block_size_query);
+
+printf("exp_new_cell_null: %d\n", exp_new_cell_null);
+printf("exp_update_in_spec_cell: %d\n", exp_update_in_spec_cell);
+printf("exp_old_cell_null: %d\n", exp_old_cell_null);
+
+printf("check_tot_covered: %d %d\n", check_tot_covered /cnt_enqueue_query, cnt_enqueue_query);
+printf("check_dist_query_local: %d\n", check_dist_query_local);
+printf("check_cnt_enqueue: %d\n", check_cnt_enqueue);
+printf("check_lb_null: %d\n", check_lb_null);
+printf("check_rt_null: %d\n", check_rt_null);
 
 //		printf("Sizeof UpdateType: %d\n", sizeof(UpdateType));
 //		printf("Sizeof QueryType: %d\n", sizeof(QueryType));
@@ -794,6 +900,6 @@ if(tid == 0){
 //		printf("Sizeof QueryType *: %d\n", sizeof(QueryType *));
 //		printf("Sizeof int *: %d\n", sizeof(int *));
 //		printf("Sizeof SIEntry: %d\n", sizeof(SIEntry));
-	}
+}
 }
 

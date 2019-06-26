@@ -15,8 +15,7 @@
 #include "ObjBox.cuh"
 #include "misc/Cell.cuh"
 
-class SIEntry
-{
+class SIEntry {
 public:
     int idx_cell;
     int idx_bkt;
@@ -25,6 +24,7 @@ public:
 
 public:
     SIEntry();
+
     __device__ void init(void);
 
     __device__ int getIdx(void);
@@ -32,12 +32,17 @@ public:
     __device__ void clear(void);
 
     __device__ void rwLock();
+
     __device__ void rwUnLock();
+
     __device__ bool tryLock();
 };
+
 #ifdef linux
 // Pre-allocated memory for second index
-extern __device__ SIEntry *sie_array;
+extern __device__ SIEntry
+*
+sie_array;
 extern __device__ int pitch_sie;
 extern __device__ int memfence_delay_step;
 #else

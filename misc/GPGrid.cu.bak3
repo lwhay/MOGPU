@@ -29,312 +29,305 @@
 using namespace std;
 
 
-void launchGPGrid(void)
-{
-	// Reset all status on the GPU
-	cudaDeviceReset();
-	Config *p_config = Config::getInstance();
-	initHostGConfig();
-	cout << "Finished initHostGConfig()" << endl;
+void launchGPGrid(void) {
+    // Reset all status on the GPU
+    cudaDeviceReset();
+    Config *p_config = Config::getInstance();
+    initHostGConfig();
+    cout << "Finished initHostGConfig()" << endl;
 
-	if (p_config->edge_cell_num < p_config->side_len_vgroup)
-	{
-		cout << "\nError parameters: edge_cell_num < side_len_vgroup !!! \n" << endl;
-		exit(1);
-	}
+    if (p_config->edge_cell_num < p_config->side_len_vgroup) {
+        cout << "\nError parameters: edge_cell_num < side_len_vgroup !!! \n" << endl;
+        exit(1);
+    }
 
-	// Initialize Buffer
-	Buffer<UpdateType> *orig_buffer_update = new Buffer<UpdateType>();
-	Buffer<QueryType> *orig_buffer_query = new Buffer<QueryType>();
-	orig_buffer_update->initBuffer();
-	orig_buffer_query->initBuffer();
+    // Initialize Buffer
+    Buffer<UpdateType> *orig_buffer_update = new Buffer<UpdateType>();
+    Buffer<QueryType> *orig_buffer_query = new Buffer<QueryType>();
+    orig_buffer_update->initBuffer();
+    orig_buffer_query->initBuffer();
 
-	cudaEvent_t start0, stop0, start1, stop1, start2, stop2;
-	float elapsed0, elapsed1, elapsed2;
-	int res;
+    cudaEvent_t start0, stop0, start1, stop1, start2, stop2;
+    float elapsed0, elapsed1, elapsed2;
+    int res;
 
-	cudaEventCreate(&start0);
-	cudaEventCreate(&stop0);
-	cudaEventCreate(&start1);
-	cudaEventCreate(&stop1);
-	cudaEventCreate(&start2);
-	cudaEventCreate(&stop2);
+    cudaEventCreate(&start0);
+    cudaEventCreate(&stop0);
+    cudaEventCreate(&start1);
+    cudaEventCreate(&stop1);
+    cudaEventCreate(&start2);
+    cudaEventCreate(&stop2);
 
-	cudaStream_t stream0;
-	cudaStream_t stream1;
-	cudaStream_t stream2;
-	cudaStream_t stream3;
-	cudaStreamCreate(&stream0);
-	cudaStreamCreate(&stream1);
-	cudaStreamCreate(&stream2);
-	cudaStreamCreate(&stream3);
+    cudaStream_t stream0;
+    cudaStream_t stream1;
+    cudaStream_t stream2;
+    cudaStream_t stream3;
+    cudaStreamCreate(&stream0);
+    cudaStreamCreate(&stream1);
+    cudaStreamCreate(&stream2);
+    cudaStreamCreate(&stream3);
 
-	GConfig *pinned_p_config;
-	UpdateType *pinned_buffer_update;
-	QueryType *pinned_buffer_query;
-	UpdateType *dev_buffer_update;
-	QueryType *dev_buffer_query;
+    GConfig * pinned_p_config;
+    UpdateType *pinned_buffer_update;
+    QueryType *pinned_buffer_query;
+    UpdateType *dev_buffer_update;
+    QueryType *dev_buffer_query;
 
-	// ------------------------------------------------------------------------------------
-	cout << "Sizeof UpdateType: " << sizeof(UpdateType) << endl;
-	cout << "Sizeof QueryType: " << sizeof(QueryType) << endl;
-	cout << "Sizeof ObjBox: " << sizeof(ObjBox) << endl;
-	cout << "Sizeof ObjBox **: " << sizeof(ObjBox **) << endl;
-	cout << "Sizeof QueryQNode: " << sizeof(QueryQNode) << endl;
-	cout << "Sizeof QueryType *: " << sizeof(QueryType *) << endl;
-	cout << "Sizeof int *: " << sizeof(int *) << endl;
-	cout << "Sizeof SIEntry: " << sizeof(SIEntry) << endl << endl;
+    // ------------------------------------------------------------------------------------
+    cout << "Sizeof UpdateType: " << sizeof(UpdateType) << endl;
+    cout << "Sizeof QueryType: " << sizeof(QueryType) << endl;
+    cout << "Sizeof ObjBox: " << sizeof(ObjBox) << endl;
+    cout << "Sizeof ObjBox **: " << sizeof(ObjBox **) << endl;
+    cout << "Sizeof QueryQNode: " << sizeof(QueryQNode) << endl;
+    cout << "Sizeof QueryType *: " << sizeof(QueryType *) << endl;
+    cout << "Sizeof int *: " << sizeof(int *) << endl;
+    cout << "Sizeof SIEntry: " << sizeof(SIEntry) << endl << endl;
 
-	cout << "Initializing memory for Buffer...  " << endl;
+    cout << "Initializing memory for Buffer...  " << endl;
 
 
-	if (p_config->gaussian_data == 1)
-	{
-		cout << "Gaussian Data!!!" << endl;
-	}
-	else if (p_config->uniform_data == 1)
-	{
-		cout << "Uniform Data!!!" << endl;
-	}
+    if (p_config->gaussian_data == 1) {
+        cout << "Gaussian Data!!!" << endl;
+    } else if (p_config->uniform_data == 1) {
+        cout << "Uniform Data!!!" << endl;
+    }
 
 
 
-	//Inspective Variables
-	int *complete_cnt_update, *dev_cnt_update;
-	int *complete_cnt_query, *dev_cnt_query;
-	cudaHostAlloc((void **)&complete_cnt_update, sizeof(int), cudaHostAllocMapped);
-	cudaHostAlloc((void **)&complete_cnt_query, sizeof(int), cudaHostAllocMapped);
-	cudaHostAlloc((void **)&pinned_p_config, sizeof(GConfig), cudaHostAllocMapped);
-	//cudaMallocManaged(&pinned_p_config,sizeof(GConfig)); 
-	cudaHostAlloc((void **)&pinned_buffer_update, orig_buffer_update->buffer_len * sizeof(UpdateType), cudaHostAllocMapped);
-	cudaHostAlloc((void **)&pinned_buffer_query, orig_buffer_query->buffer_len * sizeof(QueryType), cudaHostAllocMapped);
+    //Inspective Variables
+    int *complete_cnt_update, *dev_cnt_update;
+    int *complete_cnt_query, *dev_cnt_query;
+    cudaHostAlloc((void **) &complete_cnt_update, sizeof(int), cudaHostAllocMapped);
+    cudaHostAlloc((void **) &complete_cnt_query, sizeof(int), cudaHostAllocMapped);
+    cudaHostAlloc((void **) &pinned_p_config, sizeof(GConfig), cudaHostAllocMapped);
+    //cudaMallocManaged(&pinned_p_config,sizeof(GConfig));
+    cudaHostAlloc((void **) &pinned_buffer_update, orig_buffer_update->buffer_len * sizeof(UpdateType),
+                  cudaHostAllocMapped);
+    cudaHostAlloc((void **) &pinned_buffer_query, orig_buffer_query->buffer_len * sizeof(QueryType),
+                  cudaHostAllocMapped);
 
-	cout << "Initializing buffer on host memeory..." << endl;
-	int tot_cells = p_config->edge_cell_num * p_config->edge_cell_num;
+    cout << "Initializing buffer on host memeory..." << endl;
+    int tot_cells = p_config->edge_cell_num * p_config->edge_cell_num;
 
-	memcpy(pinned_p_config, host_p_config,sizeof(GConfig));
-	memcpy(pinned_buffer_update, orig_buffer_update->req_buffer, orig_buffer_update->buffer_len * sizeof(UpdateType));
-	memcpy(pinned_buffer_query, orig_buffer_query->req_buffer, orig_buffer_query->buffer_len * sizeof(QueryType));
+    memcpy(pinned_p_config, host_p_config, sizeof(GConfig));
+    memcpy(pinned_buffer_update, orig_buffer_update->req_buffer, orig_buffer_update->buffer_len * sizeof(UpdateType));
+    memcpy(pinned_buffer_query, orig_buffer_query->req_buffer, orig_buffer_query->buffer_len * sizeof(QueryType));
 
-	cout << endl << "Blocks & Threads for Distributor Kernel: " << pinned_p_config->block_analysis_num << "\t" \
-			<< pinned_p_config->thread_analysis_num << endl;
-	cout << "Blocks & Threads for Update Kernel: " << pinned_p_config->block_update_num << "\t" << \
-			pinned_p_config->thread_update_num << endl;
-	cout << "Blocks & Threads for Query Kernel: " << pinned_p_config->block_query_num << "\t" << \
-			pinned_p_config->thread_query_num << endl << endl;
+    cout << endl << "Blocks & Threads for Distributor Kernel: " << pinned_p_config->block_analysis_num << "\t" \
+ << pinned_p_config->thread_analysis_num << endl;
+    cout << "Blocks & Threads for Update Kernel: " << pinned_p_config->block_update_num << "\t" << \
+            pinned_p_config->thread_update_num << endl;
+    cout << "Blocks & Threads for Query Kernel: " << pinned_p_config->block_query_num << "\t" << \
+            pinned_p_config->thread_query_num << endl << endl;
 
-	cout <<  "Check initializaion of update buffer: "<<(pinned_buffer_update)->oid << (pinned_buffer_update + 1)->x << "\t" << (pinned_buffer_update + 1)->y << endl;
-	cout <<  "Check initializaion of query buffer: " << (pinned_buffer_query + 1000)->minX << "\t" << (pinned_buffer_query + 1000)->minY << endl;
-
-
-	cout << "Calling cudaMalloc() for buffer..." << endl;
-	cudaMalloc((void **)&dev_p_config, sizeof(GConfig));
-	cudaMalloc((void **)&dev_buffer_update, sizeof(UpdateType) * orig_buffer_update->buffer_len);
-	cudaMalloc((void **)&dev_buffer_query, sizeof(QueryType) * orig_buffer_query->buffer_len);
-	cudaMalloc((void **)&dev_cnt_update, sizeof(int));
-	cudaMalloc((void **)&dev_cnt_query, sizeof(int));
-
-	cout << endl << "Loading config data...  " << endl;
-	cudaMemcpyAsync(dev_p_config, pinned_p_config, sizeof(GConfig), \
-			cudaMemcpyHostToDevice, stream0);
-	cudaMemcpyAsync(dev_buffer_update, pinned_buffer_update, sizeof(UpdateType) * orig_buffer_update->buffer_len, cudaMemcpyHostToDevice, stream0);
-	cudaMemcpyAsync(dev_buffer_query, pinned_buffer_query, sizeof(QueryType) * orig_buffer_query->buffer_len, cudaMemcpyHostToDevice, stream0);
-	//cudaHostGetDevicePointer((void **)&dev_buffer_update, (void *)pinned_buffer_update, 0);
-	//cudaHostGetDevicePointer((void **)&dev_buffer_query, (void *)pinned_buffer_query, 0);
+    cout << "Check initializaion of update buffer: " << (pinned_buffer_update)->oid << (pinned_buffer_update + 1)->x
+         << "\t" << (pinned_buffer_update + 1)->y << endl;
+    cout << "Check initializaion of query buffer: " << (pinned_buffer_query + 1000)->minX << "\t"
+         << (pinned_buffer_query + 1000)->minY << endl;
 
 
-	// ------------------------------------------------------------------------------------
-	cout << endl << "Initializing memory for Objects..." << endl;
-	// bucket_len must be devided by 512 without remainder
-	size_t d_cols_bkt = p_config->max_bucket_len;
-	size_t d_avail_bkt = (p_config->max_obj_num * 2 / d_cols_bkt) + 1;
-	size_t d_rows_bkt = d_avail_bkt + p_config->edge_cell_num * p_config->edge_cell_num * 2;
+    cout << "Calling cudaMalloc() for buffer..." << endl;
+    cudaMalloc((void **) &dev_p_config, sizeof(GConfig));
+    cudaMalloc((void **) &dev_buffer_update, sizeof(UpdateType) * orig_buffer_update->buffer_len);
+    cudaMalloc((void **) &dev_buffer_query, sizeof(QueryType) * orig_buffer_query->buffer_len);
+    cudaMalloc((void **) &dev_cnt_update, sizeof(int));
+    cudaMalloc((void **) &dev_cnt_query, sizeof(int));
 
-	ObjBox *d_obs_pool;
-	res = cudaMalloc((void **)&d_obs_pool, (d_cols_bkt *  d_rows_bkt * sizeof(ObjBox)));
-	if (res != 0)
-	{
-		cout << "Objects::Error Point 0!" << endl;
-	}
-
-	//ObjBox *h_obs_pool = new ObjBox[d_cols_bkt * d_rows_bkt];
-	ObjBox *h_obs_pool;
-	cudaMallocHost(&h_obs_pool, sizeof(ObjBox) * d_cols_bkt * d_rows_bkt);
-	cout << "Check object_pool: " << h_obs_pool[13].x << "\t" << h_obs_pool[14].y << endl;
-	cudaMemcpyAsync(d_obs_pool, h_obs_pool, d_cols_bkt * d_rows_bkt * sizeof(ObjBox), \
-				cudaMemcpyHostToDevice, stream0);
-
-	cout << "d_avail_bkt: " << d_avail_bkt << endl;
-	cout << "d_rows_bkt: " << d_rows_bkt << endl;
-	cout << "Memory size for Objects(MiB): " << (d_cols_bkt *  d_rows_bkt * sizeof(ObjBox)) / (1024.0 * 1024) << endl << endl;
+    cout << endl << "Loading config data...  " << endl;
+    cudaMemcpyAsync(dev_p_config, pinned_p_config, sizeof(GConfig), \
+            cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(dev_buffer_update, pinned_buffer_update, sizeof(UpdateType) * orig_buffer_update->buffer_len,
+                    cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(dev_buffer_query, pinned_buffer_query, sizeof(QueryType) * orig_buffer_query->buffer_len,
+                    cudaMemcpyHostToDevice, stream0);
+    //cudaHostGetDevicePointer((void **)&dev_buffer_update, (void *)pinned_buffer_update, 0);
+    //cudaHostGetDevicePointer((void **)&dev_buffer_query, (void *)pinned_buffer_query, 0);
 
 
-	cout << "Initializing memory for Second Index..." << endl;
-	size_t d_cols_sie = p_config->max_obj_num;
-	size_t d_rows_sie = 2;
-	//SIEntry *h_sie_array = new SIEntry[d_cols_sie * d_rows_sie];
-	SIEntry *h_sie_array;
-	cudaMallocHost(&h_sie_array, sizeof(SIEntry) * d_cols_sie * d_rows_sie);
-	for(int i = 0; i<d_cols_sie * d_rows_sie;++i){
-		h_sie_array[i].idx_cell = -1;
-	}
-	SIEntry *d_sie_array;
-	res = cudaMalloc((void **)&d_sie_array, d_cols_sie * d_rows_sie * sizeof(SIEntry));
+    // ------------------------------------------------------------------------------------
+    cout << endl << "Initializing memory for Objects..." << endl;
+    // bucket_len must be devided by 512 without remainder
+    size_t d_cols_bkt = p_config->max_bucket_len;
+    size_t d_avail_bkt = (p_config->max_obj_num * 2 / d_cols_bkt) + 1;
+    size_t d_rows_bkt = d_avail_bkt + p_config->edge_cell_num * p_config->edge_cell_num * 2;
 
-	cout << "Check second index: " << h_sie_array[100].idx_cell << "\t" \
-			 << h_sie_array[100].idx_bkt << "\t" << h_sie_array[113].idx_obj << endl;
+    ObjBox * d_obs_pool;
+    res = cudaMalloc((void **) &d_obs_pool, (d_cols_bkt * d_rows_bkt * sizeof(ObjBox)));
+    if (res != 0) {
+        cout << "Objects::Error Point 0!" << endl;
+    }
 
-	cout << "Result of cudaMalloc for d_sie_array:\t" << res << "\t" << d_sie_array << endl;
-	cudaMemcpyAsync(d_sie_array, h_sie_array, d_cols_sie * d_rows_sie * sizeof(SIEntry), \
-					cudaMemcpyHostToDevice, stream0);
-	cout << "Memory size for SIE(MiB): " << (d_cols_sie * d_rows_sie * sizeof(SIEntry)) / (1024.0 * 1024) << endl;
+    //ObjBox *h_obs_pool = new ObjBox[d_cols_bkt * d_rows_bkt];
+    ObjBox * h_obs_pool;
+    cudaMallocHost(&h_obs_pool, sizeof(ObjBox) * d_cols_bkt * d_rows_bkt);
+    cout << "Check object_pool: " << h_obs_pool[13].x << "\t" << h_obs_pool[14].y << endl;
+    cudaMemcpyAsync(d_obs_pool, h_obs_pool, d_cols_bkt * d_rows_bkt * sizeof(ObjBox), \
+                cudaMemcpyHostToDevice, stream0);
 
-	// ------------------------------------------------------------------------------------
-	cout << endl << "Initializing memory for Update Cache..." << endl;
-	int capacity_cache_update = 2;
-	int tot_vgroup_update = p_config->side_len_vgroup * p_config->side_len_vgroup;
+    cout << "d_avail_bkt: " << d_avail_bkt << endl;
+    cout << "d_rows_bkt: " << d_rows_bkt << endl;
+    cout << "Memory size for Objects(MiB): " << (d_cols_bkt * d_rows_bkt * sizeof(ObjBox)) / (1024.0 * 1024) << endl
+         << endl;
+
+
+    cout << "Initializing memory for Second Index..." << endl;
+    size_t d_cols_sie = p_config->max_obj_num;
+    size_t d_rows_sie = 2;
+    //SIEntry *h_sie_array = new SIEntry[d_cols_sie * d_rows_sie];
+    SIEntry * h_sie_array;
+    cudaMallocHost(&h_sie_array, sizeof(SIEntry) * d_cols_sie * d_rows_sie);
+    for (int i = 0; i < d_cols_sie * d_rows_sie; ++i) {
+        h_sie_array[i].idx_cell = -1;
+    }
+    SIEntry * d_sie_array;
+    res = cudaMalloc((void **) &d_sie_array, d_cols_sie * d_rows_sie * sizeof(SIEntry));
+
+    cout << "Check second index: " << h_sie_array[100].idx_cell << "\t" \
+ << h_sie_array[100].idx_bkt << "\t" << h_sie_array[113].idx_obj << endl;
+
+    cout << "Result of cudaMalloc for d_sie_array:\t" << res << "\t" << d_sie_array << endl;
+    cudaMemcpyAsync(d_sie_array, h_sie_array, d_cols_sie * d_rows_sie * sizeof(SIEntry), \
+                    cudaMemcpyHostToDevice, stream0);
+    cout << "Memory size for SIE(MiB): " << (d_cols_sie * d_rows_sie * sizeof(SIEntry)) / (1024.0 * 1024) << endl;
+
+    // ------------------------------------------------------------------------------------
+    cout << endl << "Initializing memory for Update Cache..." << endl;
+    int capacity_cache_update = 2;
+    int tot_vgroup_update = p_config->side_len_vgroup * p_config->side_len_vgroup;
 //	if (p_config->edge_cell_num > p_config->side_len_vgroup)
 //	{
 //		tot_vgroup_update = p_config->side_len_vgroup * p_config->side_len_vgroup;
 //	}
 //	int h_seg_node_update = p_config->buffer_block_size / tot_vgroup_update + 1024;
-	int h_seg_node_update = p_config->len_seg_cache_update;
+    int h_seg_node_update = p_config->len_seg_cache_update;
 
-	int len_node_update = h_seg_node_update * tot_vgroup_update;
+    int len_node_update = h_seg_node_update * tot_vgroup_update;
 // Update cache area: Start--------
-	int *mtx_delete_pool = new int[capacity_cache_update * len_node_update];
-	int *d_mtx_delete_pool;
-	res = cudaMalloc((void **)&d_mtx_delete_pool, capacity_cache_update * len_node_update * sizeof(int));
-	if (res != 0)
-	{
-		cout << "Update Cache::Error Point 0!" << endl;
-		return;
-	}
+    int *mtx_delete_pool = new int[capacity_cache_update * len_node_update];
+    int *d_mtx_delete_pool;
+    res = cudaMalloc((void **) &d_mtx_delete_pool, capacity_cache_update * len_node_update * sizeof(int));
+    if (res != 0) {
+        cout << "Update Cache::Error Point 0!" << endl;
+        return;
+    }
 
 
-	UpdateType *mtx_insert_pool = new UpdateType[capacity_cache_update * len_node_update];
-	UpdateType *d_mtx_insert_pool;
-	res = cudaMalloc((void **)&d_mtx_insert_pool, capacity_cache_update * len_node_update * sizeof(UpdateType));
-	if (res != 0)
-	{
-		cout << "Update Cache::Error Point 1!" << endl;
-		return;
-	}
+    UpdateType *mtx_insert_pool = new UpdateType[capacity_cache_update * len_node_update];
+    UpdateType *d_mtx_insert_pool;
+    res = cudaMalloc((void **) &d_mtx_insert_pool, capacity_cache_update * len_node_update * sizeof(UpdateType));
+    if (res != 0) {
+        cout << "Update Cache::Error Point 1!" << endl;
+        return;
+    }
 
-	UpdateType *mtx_fresh_pool = new UpdateType[capacity_cache_update * len_node_update];
-	UpdateType *d_mtx_fresh_pool;
-	res = cudaMalloc((void **)&d_mtx_fresh_pool, capacity_cache_update * len_node_update * sizeof(UpdateType));
-	if (res != 0)
-	{
-		cout << "Update Cache::Error Point 2!" << endl;
-		return;
-	}
+    UpdateType *mtx_fresh_pool = new UpdateType[capacity_cache_update * len_node_update];
+    UpdateType *d_mtx_fresh_pool;
+    res = cudaMalloc((void **) &d_mtx_fresh_pool, capacity_cache_update * len_node_update * sizeof(UpdateType));
+    if (res != 0) {
+        cout << "Update Cache::Error Point 2!" << endl;
+        return;
+    }
 
-	int *sum_d_pool = new int[capacity_cache_update * tot_vgroup_update];
-	int *d_sum_d_pool;
-	res = cudaMalloc((void **)&d_sum_d_pool, capacity_cache_update * tot_vgroup_update * sizeof(int));
-	if (res != 0)
-	{
-		cout << "Update Cache::Error Point 3!" << endl;
-		return;
-	}
+    int *sum_d_pool = new int[capacity_cache_update * tot_vgroup_update];
+    int *d_sum_d_pool;
+    res = cudaMalloc((void **) &d_sum_d_pool, capacity_cache_update * tot_vgroup_update * sizeof(int));
+    if (res != 0) {
+        cout << "Update Cache::Error Point 3!" << endl;
+        return;
+    }
 
-	memset(sum_d_pool, 0, capacity_cache_update * tot_vgroup_update * sizeof(int));
-	cudaMemcpyAsync(d_sum_d_pool, sum_d_pool, capacity_cache_update * tot_vgroup_update * sizeof(int), \
-			cudaMemcpyHostToDevice, stream0);
+    memset(sum_d_pool, 0, capacity_cache_update * tot_vgroup_update * sizeof(int));
+    cudaMemcpyAsync(d_sum_d_pool, sum_d_pool, capacity_cache_update * tot_vgroup_update * sizeof(int), \
+            cudaMemcpyHostToDevice, stream0);
 
-	int *sum_i_pool = new int[capacity_cache_update * tot_vgroup_update];
-	int *d_sum_i_pool;
-	res = cudaMalloc((void **)&d_sum_i_pool, capacity_cache_update * tot_vgroup_update * sizeof(int));
-	if (res != 0)
-	{
-		cout << "Update Cache::Error Point 4!" << endl;
-		return;
-	}
+    int *sum_i_pool = new int[capacity_cache_update * tot_vgroup_update];
+    int *d_sum_i_pool;
+    res = cudaMalloc((void **) &d_sum_i_pool, capacity_cache_update * tot_vgroup_update * sizeof(int));
+    if (res != 0) {
+        cout << "Update Cache::Error Point 4!" << endl;
+        return;
+    }
 
-	memset(sum_i_pool, 0, capacity_cache_update * tot_vgroup_update * sizeof(int));
-	cudaMemcpyAsync(d_sum_i_pool, sum_i_pool, capacity_cache_update * tot_vgroup_update * sizeof(int), \
-			cudaMemcpyHostToDevice, stream0);
+    memset(sum_i_pool, 0, capacity_cache_update * tot_vgroup_update * sizeof(int));
+    cudaMemcpyAsync(d_sum_i_pool, sum_i_pool, capacity_cache_update * tot_vgroup_update * sizeof(int), \
+            cudaMemcpyHostToDevice, stream0);
 
-	int *sum_f_pool = new int[capacity_cache_update * tot_vgroup_update];
-	int *d_sum_f_pool;
-	res = cudaMalloc((void **)&d_sum_f_pool, capacity_cache_update * tot_vgroup_update * sizeof(int));
-	if (res != 0)
-	{
-		cout << "Update Cache::Error Point 5!" << endl;
-		return;
-	}
+    int *sum_f_pool = new int[capacity_cache_update * tot_vgroup_update];
+    int *d_sum_f_pool;
+    res = cudaMalloc((void **) &d_sum_f_pool, capacity_cache_update * tot_vgroup_update * sizeof(int));
+    if (res != 0) {
+        cout << "Update Cache::Error Point 5!" << endl;
+        return;
+    }
 
-	memset(sum_f_pool, 0, capacity_cache_update * tot_vgroup_update * sizeof(int));
-	cudaMemcpyAsync(d_sum_f_pool, sum_f_pool, capacity_cache_update * tot_vgroup_update * sizeof(int), \
-			cudaMemcpyHostToDevice, stream0);
+    memset(sum_f_pool, 0, capacity_cache_update * tot_vgroup_update * sizeof(int));
+    cudaMemcpyAsync(d_sum_f_pool, sum_f_pool, capacity_cache_update * tot_vgroup_update * sizeof(int), \
+            cudaMemcpyHostToDevice, stream0);
 //End------
-	UpdateQNode *h_arr_node = (UpdateQNode *)malloc(capacity_cache_update * sizeof(UpdateQNode));
-	UpdateQNode *d_arr_node;
-	res = cudaMalloc((void **)&d_arr_node, capacity_cache_update * sizeof(UpdateQNode));
-	if (res != 0)
-	{
-		cout << "Update Cache::Error Point 6!" << endl;
-		return;
-	}
+    UpdateQNode * h_arr_node = (UpdateQNode *) malloc(capacity_cache_update * sizeof(UpdateQNode));
+    UpdateQNode * d_arr_node;
+    res = cudaMalloc((void **) &d_arr_node, capacity_cache_update * sizeof(UpdateQNode));
+    if (res != 0) {
+        cout << "Update Cache::Error Point 6!" << endl;
+        return;
+    }
 
 
-	for (int i = 0; i < capacity_cache_update; i++)
-	{
-		h_arr_node[i].lock = 0;
-		h_arr_node[i].seg = h_seg_node_update;
-		h_arr_node[i].num_cells = tot_vgroup_update;
+    for (int i = 0; i < capacity_cache_update; i++) {
+        h_arr_node[i].lock = 0;
+        h_arr_node[i].seg = h_seg_node_update;
+        h_arr_node[i].num_cells = tot_vgroup_update;
 
-		h_arr_node[i].mtx_delete = d_mtx_delete_pool + i * len_node_update;
-		h_arr_node[i].mtx_insert = d_mtx_insert_pool + i * len_node_update;
-		h_arr_node[i].mtx_fresh = d_mtx_fresh_pool + i * len_node_update;
+        h_arr_node[i].mtx_delete = d_mtx_delete_pool + i * len_node_update;
+        h_arr_node[i].mtx_insert = d_mtx_insert_pool + i * len_node_update;
+        h_arr_node[i].mtx_fresh = d_mtx_fresh_pool + i * len_node_update;
 
-		h_arr_node[i].sum_d = d_sum_d_pool + i * tot_vgroup_update;
-		h_arr_node[i].sum_i = d_sum_i_pool + i * tot_vgroup_update;
-		h_arr_node[i].sum_f = d_sum_f_pool + i * tot_vgroup_update;
-	}
-	cudaMemcpyAsync(d_arr_node, h_arr_node, capacity_cache_update * sizeof(UpdateQNode), cudaMemcpyHostToDevice, stream0);
+        h_arr_node[i].sum_d = d_sum_d_pool + i * tot_vgroup_update;
+        h_arr_node[i].sum_i = d_sum_i_pool + i * tot_vgroup_update;
+        h_arr_node[i].sum_f = d_sum_f_pool + i * tot_vgroup_update;
+    }
+    cudaMemcpyAsync(d_arr_node, h_arr_node, capacity_cache_update * sizeof(UpdateQNode), cudaMemcpyHostToDevice,
+                    stream0);
 
-	//UpdateCacheArea *h_req_cache_update = (UpdateCacheArea *)malloc(sizeof(UpdateCacheArea));
-	UpdateCacheArea *h_req_cache_update;
-	cudaMallocHost(&h_req_cache_update, sizeof(UpdateCacheArea));
-	
-	UpdateCacheArea *d_req_cache_update;
-	cudaMalloc((void **)&d_req_cache_update, sizeof(UpdateCacheArea));
-	h_req_cache_update->token0 = 0;
-	h_req_cache_update->token1 = 0;
-	h_req_cache_update->cnt0 = 0;
-	h_req_cache_update->cnt1 = 0;
-	h_req_cache_update->array = d_arr_node;
-	cudaMemcpyAsync(d_req_cache_update, h_req_cache_update, sizeof(UpdateCacheArea), cudaMemcpyHostToDevice, stream0);
+    //UpdateCacheArea *h_req_cache_update = (UpdateCacheArea *)malloc(sizeof(UpdateCacheArea));
+    UpdateCacheArea * h_req_cache_update;
+    cudaMallocHost(&h_req_cache_update, sizeof(UpdateCacheArea));
 
-	long long unsigned size_cache_update = capacity_cache_update * len_node_update * sizeof(int) + \
-			2 * capacity_cache_update * len_node_update * sizeof(UpdateType) + \
-			3 * capacity_cache_update * tot_vgroup_update * sizeof(int) + \
-			capacity_cache_update * sizeof(UpdateCacheArea *);
+    UpdateCacheArea * d_req_cache_update;
+    cudaMalloc((void **) &d_req_cache_update, sizeof(UpdateCacheArea));
+    h_req_cache_update->token0 = 0;
+    h_req_cache_update->token1 = 0;
+    h_req_cache_update->cnt0 = 0;
+    h_req_cache_update->cnt1 = 0;
+    h_req_cache_update->array = d_arr_node;
+    cudaMemcpyAsync(d_req_cache_update, h_req_cache_update, sizeof(UpdateCacheArea), cudaMemcpyHostToDevice, stream0);
 
-	cout << "Memory size for cache area of updates(MiB): " << size_cache_update / (1024 * 1024.0) << endl;
+    long long unsigned size_cache_update = capacity_cache_update * len_node_update * sizeof(int) + \
+            2 * capacity_cache_update * len_node_update * sizeof(UpdateType) + \
+            3 * capacity_cache_update * tot_vgroup_update * sizeof(int) + \
+            capacity_cache_update * sizeof(UpdateCacheArea *);
 
-	// ------------------------------------------------------------------------------------
-	cout << endl << "Initializing memory for Query Cache..." << endl;
-	long long unsigned capacity_cache_query = 2;
+    cout << "Memory size for cache area of updates(MiB): " << size_cache_update / (1024 * 1024.0) << endl;
 
-	long long unsigned tot_cells_query = p_config->edge_cell_num * p_config->edge_cell_num;
+    // ------------------------------------------------------------------------------------
+    cout << endl << "Initializing memory for Query Cache..." << endl;
+    long long unsigned capacity_cache_query = 2;
 
-	int *h_flag_cells_covered = new int[tot_cells_query * capacity_cache_query];
-	memset(h_flag_cells_covered, 0, sizeof(int) * tot_cells_query * capacity_cache_query);
-	int *d_flag_cells_covered;
-	res = cudaMalloc((void **)&d_flag_cells_covered, sizeof(int) * tot_cells_query * capacity_cache_query);
-	cudaMemcpyAsync(d_flag_cells_covered, h_flag_cells_covered, sizeof(int) * tot_cells_query * capacity_cache_query, \
-			cudaMemcpyHostToDevice, stream0);
+    long long unsigned tot_cells_query = p_config->edge_cell_num * p_config->edge_cell_num;
 
-	int *d_cnt_queries_per_cell;
-	res = cudaMalloc((void **)&d_cnt_queries_per_cell, sizeof(int) * tot_cells_query * capacity_cache_query);
-	if (res != 0)
-	{
-		cout << "Error Point 0!" << endl;
-		return;
-	}
+    int *h_flag_cells_covered = new int[tot_cells_query * capacity_cache_query];
+    memset(h_flag_cells_covered, 0, sizeof(int) * tot_cells_query * capacity_cache_query);
+    int *d_flag_cells_covered;
+    res = cudaMalloc((void **) &d_flag_cells_covered, sizeof(int) * tot_cells_query * capacity_cache_query);
+    cudaMemcpyAsync(d_flag_cells_covered, h_flag_cells_covered, sizeof(int) * tot_cells_query * capacity_cache_query, \
+            cudaMemcpyHostToDevice, stream0);
+
+    int *d_cnt_queries_per_cell;
+    res = cudaMalloc((void **) &d_cnt_queries_per_cell, sizeof(int) * tot_cells_query * capacity_cache_query);
+    if (res != 0) {
+        cout << "Error Point 0!" << endl;
+        return;
+    }
 
 //	int total_update = p_config->max_obj_num * p_config->round_num;
 //	int total_query = p_config->max_query_num;
@@ -342,54 +335,54 @@ void launchGPGrid(void)
 //	int len_seg_cache_query = (int)((double)buffer_block_size_update * (double)total_query / (double)(total_update));
 
 
-	int len_seg_cache_query = p_config->len_seg_cache_query;
+    int len_seg_cache_query = p_config->len_seg_cache_query;
 //	int len_seg_cache_query = 1000;
 
-	unsigned int tmp_ui = (unsigned int)(p_config->buffer_block_size * p_config->max_query_num / \
-			(p_config->max_obj_num * (float)p_config->round_num)) + 1;
+    unsigned int tmp_ui = (unsigned int) (p_config->buffer_block_size * p_config->max_query_num / \
+            (p_config->max_obj_num * (float) p_config->round_num)) + 1;
 
-	double tmp_df = ((double)p_config->buffer_block_size *(double) p_config->max_query_num / \
-				((double)p_config->max_obj_num * (double)p_config->round_num)) + 1;
+    double tmp_df = ((double) p_config->buffer_block_size * (double) p_config->max_query_num / \
+                ((double) p_config->max_obj_num * (double) p_config->round_num)) + 1;
 
-	int tmp_i = (int)((double)p_config->buffer_block_size *(double) p_config->max_query_num / \
-					((double)p_config->max_obj_num * (double)p_config->round_num)) + 1;
+    int tmp_i = (int) ((double) p_config->buffer_block_size * (double) p_config->max_query_num / \
+                    ((double) p_config->max_obj_num * (double) p_config->round_num)) + 1;
 
-	long long tmp_ll = ((long long)p_config->buffer_block_size * (long long)p_config->max_query_num / \
-					((long long)p_config->max_obj_num * (long long)p_config->round_num)) + 1;
-
-
-	int *d_queries_per_cell;
-	res = cudaMalloc((void **)&d_queries_per_cell, sizeof(int) * tot_cells_query * len_seg_cache_query * capacity_cache_query);
-	cout << "len_seg_cache_query: " << len_seg_cache_query << endl;
-	if (res != 0)
-	{
-		cout << "Error Point 1!" << endl;
-		cout << "p_config->buffer_block_size: " << p_config->buffer_block_size << endl;
-		cout << "p_config->max_query_num: " << p_config->max_query_num << endl;
-		cout << "p_config->max_obj_num: " << p_config->max_obj_num << endl;
-		cout << "p_config->round_num: " << p_config->round_num << endl;
-
-		cout << "tmp_ui: " << tmp_ui << endl;
-		cout << "tmp_df: " << tmp_df << endl;
-		cout << "tmp_ll: " << tmp_ll << endl;
-		cout << "tmp_i: " << tmp_i << endl;
-
-		cout << "tot_cells_query: " << tot_cells_query << endl;
-		cout << "len_seg_cache_query: " << len_seg_cache_query << endl;
-		cout << "capacity_cache_query: " << capacity_cache_query << endl;
-
-		cout << (sizeof(int) * tot_cells_query * len_seg_cache_query * capacity_cache_query) / (1024 * 1024.0) << "MiB" << endl;
-		return;
-	}
+    long long tmp_ll = ((long long) p_config->buffer_block_size * (long long) p_config->max_query_num / \
+                    ((long long) p_config->max_obj_num * (long long) p_config->round_num)) + 1;
 
 
-	int *d_idx_cells_covered;
-	res = cudaMalloc((void **)&d_idx_cells_covered, sizeof(int) * tot_cells_query * capacity_cache_query);
-	if (res != 0)
-	{
-		cout << "Error Point 2!" << endl;
-		return;
-	}
+    int *d_queries_per_cell;
+    res = cudaMalloc((void **) &d_queries_per_cell,
+                     sizeof(int) * tot_cells_query * len_seg_cache_query * capacity_cache_query);
+    cout << "len_seg_cache_query: " << len_seg_cache_query << endl;
+    if (res != 0) {
+        cout << "Error Point 1!" << endl;
+        cout << "p_config->buffer_block_size: " << p_config->buffer_block_size << endl;
+        cout << "p_config->max_query_num: " << p_config->max_query_num << endl;
+        cout << "p_config->max_obj_num: " << p_config->max_obj_num << endl;
+        cout << "p_config->round_num: " << p_config->round_num << endl;
+
+        cout << "tmp_ui: " << tmp_ui << endl;
+        cout << "tmp_df: " << tmp_df << endl;
+        cout << "tmp_ll: " << tmp_ll << endl;
+        cout << "tmp_i: " << tmp_i << endl;
+
+        cout << "tot_cells_query: " << tot_cells_query << endl;
+        cout << "len_seg_cache_query: " << len_seg_cache_query << endl;
+        cout << "capacity_cache_query: " << capacity_cache_query << endl;
+
+        cout << (sizeof(int) * tot_cells_query * len_seg_cache_query * capacity_cache_query) / (1024 * 1024.0) << "MiB"
+             << endl;
+        return;
+    }
+
+
+    int *d_idx_cells_covered;
+    res = cudaMalloc((void **) &d_idx_cells_covered, sizeof(int) * tot_cells_query * capacity_cache_query);
+    if (res != 0) {
+        cout << "Error Point 2!" << endl;
+        return;
+    }
 
 
 //	int *d_obs_per_cell;
@@ -400,332 +393,324 @@ void launchGPGrid(void)
 //		return;
 //	}
 
-	int *d_bound_btw_cell;
-	res = cudaMalloc((void **)&d_bound_btw_cell, sizeof(int) * (tot_cells_query + 2) * capacity_cache_query);
-	if (res != 0)
-	{
-		cout << "Error Point 4!" << endl;
-		return;
-	}
+    int *d_bound_btw_cell;
+    res = cudaMalloc((void **) &d_bound_btw_cell, sizeof(int) * (tot_cells_query + 2) * capacity_cache_query);
+    if (res != 0) {
+        cout << "Error Point 4!" << endl;
+        return;
+    }
 
 
-	int *d_offset_in_cell;
-	res = cudaMalloc((void **)&d_offset_in_cell, sizeof(int) * p_config->max_obj_num * capacity_cache_query);
-	if (res != 0)
-	{
-		cout << "Error Point 5!" << endl;
-		return;
-	}
+    int *d_offset_in_cell;
+    res = cudaMalloc((void **) &d_offset_in_cell, sizeof(int) * p_config->max_obj_num * capacity_cache_query);
+    if (res != 0) {
+        cout << "Error Point 5!" << endl;
+        return;
+    }
 
-	int *d_cell_mask_obs;
-	res = cudaMalloc((void **)&d_cell_mask_obs, sizeof(int) * p_config->max_obj_num * capacity_cache_query);
-	if (res != 0)
-	{
-		cout << "Error Point 6!" << endl;
-		return;
-	}
+    int *d_cell_mask_obs;
+    res = cudaMalloc((void **) &d_cell_mask_obs, sizeof(int) * p_config->max_obj_num * capacity_cache_query);
+    if (res != 0) {
+        cout << "Error Point 6!" << endl;
+        return;
+    }
 
-	QueryType *d_buffer_block_query;
-	res = cudaMalloc((void **)&d_buffer_block_query, sizeof(QueryType) * len_seg_cache_query * capacity_cache_query);
-	if (res != 0)
-	{
-		cout << "Error Point 7!" << endl;
-		return;
-	}
+    QueryType *d_buffer_block_query;
+    res = cudaMalloc((void **) &d_buffer_block_query, sizeof(QueryType) * len_seg_cache_query * capacity_cache_query);
+    if (res != 0) {
+        cout << "Error Point 7!" << endl;
+        return;
+    }
 
-	QueryQNode *h_arr_node_query = new QueryQNode[capacity_cache_query];
-	for (int i = 0; i < capacity_cache_query; i++)
-	{
-		h_arr_node_query[i].tot_cells_covered = 0;
-		h_arr_node_query[i].flag_cells_covered = &d_flag_cells_covered[i * tot_cells_query];
+    QueryQNode * h_arr_node_query = new QueryQNode[capacity_cache_query];
+    for (int i = 0; i < capacity_cache_query; i++) {
+        h_arr_node_query[i].tot_cells_covered = 0;
+        h_arr_node_query[i].flag_cells_covered = &d_flag_cells_covered[i * tot_cells_query];
 
-		h_arr_node_query[i].cnt_queries_per_cell = &d_cnt_queries_per_cell[i * tot_cells_query];
-		h_arr_node_query[i].queries_per_cell = &d_queries_per_cell[i * tot_cells_query * len_seg_cache_query];
-		h_arr_node_query[i].idx_cells_covered = &d_idx_cells_covered[i * tot_cells_query];
+        h_arr_node_query[i].cnt_queries_per_cell = &d_cnt_queries_per_cell[i * tot_cells_query];
+        h_arr_node_query[i].queries_per_cell = &d_queries_per_cell[i * tot_cells_query * len_seg_cache_query];
+        h_arr_node_query[i].idx_cells_covered = &d_idx_cells_covered[i * tot_cells_query];
 
-		h_arr_node_query[i].bound_btw_cell = &d_bound_btw_cell[i * (tot_cells_query + 1)];
-		h_arr_node_query[i].offset_in_cell = &d_offset_in_cell[i * tot_cells_query];
-		h_arr_node_query[i].cell_mask_obs = &d_cell_mask_obs[i * tot_cells_query];
+        h_arr_node_query[i].bound_btw_cell = &d_bound_btw_cell[i * (tot_cells_query + 1)];
+        h_arr_node_query[i].offset_in_cell = &d_offset_in_cell[i * tot_cells_query];
+        h_arr_node_query[i].cell_mask_obs = &d_cell_mask_obs[i * tot_cells_query];
 
-		h_arr_node_query[i].buffer_block_size_query = len_seg_cache_query;
-		h_arr_node_query[i].buffer_block_query = &d_buffer_block_query[i * len_seg_cache_query];
-	}
+        h_arr_node_query[i].buffer_block_size_query = len_seg_cache_query;
+        h_arr_node_query[i].buffer_block_query = &d_buffer_block_query[i * len_seg_cache_query];
+    }
 
-	QueryQNode *d_arr_node_query;
-	cudaMalloc((void **)&d_arr_node_query, sizeof(QueryQNode) * capacity_cache_query);
-	cudaMemcpyAsync(d_arr_node_query, h_arr_node_query, sizeof(QueryQNode) * capacity_cache_query, \
-			cudaMemcpyHostToDevice, stream0);
+    QueryQNode * d_arr_node_query;
+    cudaMalloc((void **) &d_arr_node_query, sizeof(QueryQNode) * capacity_cache_query);
+    cudaMemcpyAsync(d_arr_node_query, h_arr_node_query, sizeof(QueryQNode) * capacity_cache_query, \
+            cudaMemcpyHostToDevice, stream0);
 
-	//QueryCacheArea *h_req_cache_query = new QueryCacheArea();
-	QueryCacheArea *h_req_cache_query;
-	cudaMallocHost(&h_req_cache_query, sizeof(QueryCacheArea));
-	
-	h_req_cache_query->array = d_arr_node_query;
-	QueryCacheArea *d_req_cache_query;
-	cudaMalloc((void **)&d_req_cache_query, sizeof(QueryCacheArea));
-	cudaMemcpyAsync(d_req_cache_query, h_req_cache_query, sizeof(QueryCacheArea), \
-			cudaMemcpyHostToDevice, stream0);
+    //QueryCacheArea *h_req_cache_query = new QueryCacheArea();
+    QueryCacheArea * h_req_cache_query;
+    cudaMallocHost(&h_req_cache_query, sizeof(QueryCacheArea));
+
+    h_req_cache_query->array = d_arr_node_query;
+    QueryCacheArea * d_req_cache_query;
+    cudaMalloc((void **) &d_req_cache_query, sizeof(QueryCacheArea));
+    cudaMemcpyAsync(d_req_cache_query, h_req_cache_query, sizeof(QueryCacheArea), \
+            cudaMemcpyHostToDevice, stream0);
 
 
-	long long unsigned size_cache_query = sizeof(int) * tot_cells_query * capacity_cache_query + \
-			sizeof(int) * tot_cells_query * len_seg_cache_query * capacity_cache_query + \
-			sizeof(int) * tot_cells_query * capacity_cache_query + \
-			sizeof(int) * (tot_cells_query + 2) * capacity_cache_query + \
-			sizeof(int) * p_config->max_obj_num * capacity_cache_query + \
-			sizeof(int) * p_config->max_obj_num * capacity_cache_query + \
-			sizeof(QueryType) * len_seg_cache_query * capacity_cache_query;
+    long long unsigned size_cache_query = sizeof(int) * tot_cells_query * capacity_cache_query + \
+            sizeof(int) * tot_cells_query * len_seg_cache_query * capacity_cache_query + \
+            sizeof(int) * tot_cells_query * capacity_cache_query + \
+            sizeof(int) * (tot_cells_query + 2) * capacity_cache_query + \
+            sizeof(int) * p_config->max_obj_num * capacity_cache_query + \
+            sizeof(int) * p_config->max_obj_num * capacity_cache_query + \
+            sizeof(QueryType) * len_seg_cache_query * capacity_cache_query;
 
-	cout << "Memory size for cache area of queries(MiB): " << size_cache_query / (1024 * 1024.0) << endl;
+    cout << "Memory size for cache area of queries(MiB): " << size_cache_query / (1024 * 1024.0) << endl;
 
 
 
-	// -------------------------------------------------------------------------------------------------
-	cout << endl << "Initializing Memory for Output... " << endl;
+    // -------------------------------------------------------------------------------------------------
+    cout << endl << "Initializing Memory for Output... " << endl;
 
-	int *cnt_obs_per_req;
-	cudaHostAlloc((void **)&cnt_obs_per_req, sizeof(int) * p_config->max_query_num, cudaHostAllocMapped);
-	memset(cnt_obs_per_req, 0, sizeof(int) * p_config->max_query_num);
+    int *cnt_obs_per_req;
+    cudaHostAlloc((void **) &cnt_obs_per_req, sizeof(int) * p_config->max_query_num, cudaHostAllocMapped);
+    memset(cnt_obs_per_req, 0, sizeof(int) * p_config->max_query_num);
 
-	int *d_cnt_obs_per_req;
-	res = cudaMalloc((void **)&d_cnt_obs_per_req, sizeof(int) * p_config->max_query_num);
+    int *d_cnt_obs_per_req;
+    res = cudaMalloc((void **) &d_cnt_obs_per_req, sizeof(int) * p_config->max_query_num);
 
-	cudaMemcpyAsync(d_cnt_obs_per_req, cnt_obs_per_req, sizeof(int) * p_config->max_query_num, \
-				cudaMemcpyHostToDevice, stream2);
+    cudaMemcpyAsync(d_cnt_obs_per_req, cnt_obs_per_req, sizeof(int) * p_config->max_query_num, \
+                cudaMemcpyHostToDevice, stream2);
 
-	SimObject *d_obs_output;
-	res = cudaMalloc((void **)&d_obs_output, sizeof(SimObject) * p_config->max_obj_num);
+    SimObject *d_obs_output;
+    res = cudaMalloc((void **) &d_obs_output, sizeof(SimObject) * p_config->max_obj_num);
 
-	if (res != 0)
-	{
-		cout << "Output::Error Point 0!" << endl;
-	}
+    if (res != 0) {
+        cout << "Output::Error Point 0!" << endl;
+    }
 
-	cout << "Memory size for Output (MiB): " <<  \
-			(sizeof(SimObject) * p_config->max_obj_num + sizeof(int) * p_config->max_query_num) / (1024 * 1024.0) \
-					<< endl << endl;
+    cout << "Memory size for Output (MiB): " << \
+            (sizeof(SimObject) * p_config->max_obj_num + sizeof(int) * p_config->max_query_num) / (1024 * 1024.0) \
+ << endl << endl;
 
 
-	// -----------------------------------------------------------------------------------
-	cout << endl << "Initializing Memory for Grids... " << endl;
+    // -----------------------------------------------------------------------------------
+    cout << endl << "Initializing Memory for Grids... " << endl;
 
-	Cell **h_cell = new Cell*[p_config->edge_cell_num * 2];
-	//Cell *h_arr_cell = new Cell[tot_cells * 2];
-	Cell *h_arr_cell;
-	cudaMallocHost(&h_arr_cell, sizeof(Cell)*tot_cells * 2);
+    Cell **h_cell = new Cell *[p_config->edge_cell_num * 2];
+    //Cell *h_arr_cell = new Cell[tot_cells * 2];
+    Cell *h_arr_cell;
+    cudaMallocHost(&h_arr_cell, sizeof(Cell) * tot_cells * 2);
 
-	Cell **d_cell;
-	Cell *d_arr_cell;
+    Cell **d_cell;
+    Cell *d_arr_cell;
 
-	cudaMalloc((void **)&d_cell, sizeof(Cell *) * p_config->edge_cell_num * 2);
-	cudaMalloc((void **)&d_arr_cell, sizeof(Cell) * tot_cells * 2);
+    cudaMalloc((void **) &d_cell, sizeof(Cell *) * p_config->edge_cell_num * 2);
+    cudaMalloc((void **) &d_arr_cell, sizeof(Cell) * tot_cells * 2);
 
 //	Grid *h_index_A = new Grid();
 //	Grid *h_index_B = new Grid();
-	Grid *h_index_A;
-	Grid *h_index_B;
-	cudaMallocHost(&h_index_A, sizeof(Grid));
-	cudaMallocHost(&h_index_B, sizeof(Grid));
+    Grid * h_index_A;
+    Grid * h_index_B;
+    cudaMallocHost(&h_index_A, sizeof(Grid));
+    cudaMallocHost(&h_index_B, sizeof(Grid));
 
-	Grid *d_index_A;
-	Grid *d_index_B;
+    Grid * d_index_A;
+    Grid * d_index_B;
 
-	cudaMalloc((void **)&d_index_A, sizeof(Grid));
-	cudaMalloc((void **)&d_index_B, sizeof(Grid));
+    cudaMalloc((void **) &d_index_A, sizeof(Grid));
+    cudaMalloc((void **) &d_index_B, sizeof(Grid));
 
-	int len_arr_bkts = 32;
-	ObjBox **h_arr_bkts = new ObjBox*[len_arr_bkts * tot_cells * 2];
-	int *h_arr_idx_bkt = new int[len_arr_bkts * tot_cells * 2];
-	memset(h_arr_bkts, -1, sizeof(ObjBox *) * len_arr_bkts * tot_cells * 2);
-	memset(h_arr_idx_bkt, -1, sizeof(int) * len_arr_bkts * tot_cells * 2);
+    int len_arr_bkts = 32;
+    ObjBox * *h_arr_bkts = new ObjBox *[len_arr_bkts * tot_cells * 2];
+    int *h_arr_idx_bkt = new int[len_arr_bkts * tot_cells * 2];
+    memset(h_arr_bkts, -1, sizeof(ObjBox *) * len_arr_bkts * tot_cells * 2);
+    memset(h_arr_idx_bkt, -1, sizeof(int) * len_arr_bkts * tot_cells * 2);
 
-	for (int i = 0; i < tot_cells * 2; i++)
-	{
-		h_arr_bkts[i * len_arr_bkts] = d_obs_pool + d_avail_bkt * p_config->max_bucket_len + p_config->max_bucket_len * i;
-		h_arr_idx_bkt[i * len_arr_bkts] = d_avail_bkt + i;
-	}
+    for (int i = 0; i < tot_cells * 2; i++) {
+        h_arr_bkts[i * len_arr_bkts] =
+                d_obs_pool + d_avail_bkt * p_config->max_bucket_len + p_config->max_bucket_len * i;
+        h_arr_idx_bkt[i * len_arr_bkts] = d_avail_bkt + i;
+    }
 
-	cout << "h_arr_bkts[111]: " << h_arr_bkts[111] << endl;
-	cout << "h_arr_bkts[32]: " << h_arr_bkts[32] << endl;
-	cout << "h_arr_idx_bkt[111]: " << h_arr_idx_bkt[111] << endl;
-	cout << "h_arr_idx_bkt[32]: " << h_arr_idx_bkt[32] << endl;
+    cout << "h_arr_bkts[111]: " << h_arr_bkts[111] << endl;
+    cout << "h_arr_bkts[32]: " << h_arr_bkts[32] << endl;
+    cout << "h_arr_idx_bkt[111]: " << h_arr_idx_bkt[111] << endl;
+    cout << "h_arr_idx_bkt[32]: " << h_arr_idx_bkt[32] << endl;
 
-	ObjBox **d_arr_bkts;
-	int *d_arr_idx_bkt;
-	cudaMalloc((void **)&d_arr_bkts, sizeof(ObjBox *) * len_arr_bkts * tot_cells * 2);
-	cudaMalloc((void **)&d_arr_idx_bkt, sizeof(int) * len_arr_bkts * tot_cells * 2);
+    ObjBox * *d_arr_bkts;
+    int *d_arr_idx_bkt;
+    cudaMalloc((void **) &d_arr_bkts, sizeof(ObjBox *) * len_arr_bkts * tot_cells * 2);
+    cudaMalloc((void **) &d_arr_idx_bkt, sizeof(int) * len_arr_bkts * tot_cells * 2);
 
 //	cout << " cudaMemcpyAsync Point 0 " << endl;
-	cudaMemcpyAsync(d_arr_bkts, h_arr_bkts, \
-			sizeof(ObjBox *) * len_arr_bkts * tot_cells * 2, \
-							cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(d_arr_bkts, h_arr_bkts, \
+            sizeof(ObjBox *) * len_arr_bkts * tot_cells * 2, \
+                            cudaMemcpyHostToDevice, stream0);
 
 //	cout << " cudaMemcpyAsync Point 1 " << endl;
-	cudaMemcpyAsync(d_arr_idx_bkt, h_arr_idx_bkt, \
-				sizeof(int) * len_arr_bkts * tot_cells * 2, \
-								cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(d_arr_idx_bkt, h_arr_idx_bkt, \
+                sizeof(int) * len_arr_bkts * tot_cells * 2, \
+                                cudaMemcpyHostToDevice, stream0);
 
-	int *h_avail_idx_bkt_queue = new int[d_avail_bkt];
-	for (int i = 0; i < d_avail_bkt; i++)
-	{
-		h_avail_idx_bkt_queue[i] = i;
-	}
+    int *h_avail_idx_bkt_queue = new int[d_avail_bkt];
+    for (int i = 0; i < d_avail_bkt; i++) {
+        h_avail_idx_bkt_queue[i] = i;
+    }
 
-	cout << "h_avail_idx_bkt_queue[99]: " << h_avail_idx_bkt_queue[99] << endl;
-	int *d_avail_idx_bkt_queue;
-	cudaMalloc((void **)&d_avail_idx_bkt_queue, sizeof(int) * d_avail_bkt);
+    cout << "h_avail_idx_bkt_queue[99]: " << h_avail_idx_bkt_queue[99] << endl;
+    int *d_avail_idx_bkt_queue;
+    cudaMalloc((void **) &d_avail_idx_bkt_queue, sizeof(int) * d_avail_bkt);
 
 //	cout << " cudaMemcpyAsync Point 2 " << endl;
-	cudaMemcpyAsync(d_avail_idx_bkt_queue, h_avail_idx_bkt_queue, \
-			sizeof(int) * d_avail_bkt, cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(d_avail_idx_bkt_queue, h_avail_idx_bkt_queue, \
+            sizeof(int) * d_avail_bkt, cudaMemcpyHostToDevice, stream0);
 
-	//CircularQueue *h_queue_bkts_free = new CircularQueue;
-	CircularQueue *h_queue_bkts_free;
-		cudaMallocHost(&h_queue_bkts_free, sizeof(CircularQueue));
-	
-	h_queue_bkts_free->capacity = d_avail_bkt;
-	h_queue_bkts_free->avail_idx_bkt = d_avail_idx_bkt_queue;
-	h_queue_bkts_free->cnt_elem = d_avail_bkt;
-	h_queue_bkts_free->head = 0;
-	h_queue_bkts_free->rear = 0;
+    //CircularQueue *h_queue_bkts_free = new CircularQueue;
+    CircularQueue * h_queue_bkts_free;
+    cudaMallocHost(&h_queue_bkts_free, sizeof(CircularQueue));
 
-	CircularQueue *d_queue_bkts_free;
-	cudaMalloc((void **)&d_queue_bkts_free, sizeof(CircularQueue));
+    h_queue_bkts_free->capacity = d_avail_bkt;
+    h_queue_bkts_free->avail_idx_bkt = d_avail_idx_bkt_queue;
+    h_queue_bkts_free->cnt_elem = d_avail_bkt;
+    h_queue_bkts_free->head = 0;
+    h_queue_bkts_free->rear = 0;
+
+    CircularQueue * d_queue_bkts_free;
+    cudaMalloc((void **) &d_queue_bkts_free, sizeof(CircularQueue));
 
 //	cout << " cudaMemcpyAsync Point 3 " << endl;
-	cudaMemcpyAsync(d_queue_bkts_free, h_queue_bkts_free, sizeof(CircularQueue), cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(d_queue_bkts_free, h_queue_bkts_free, sizeof(CircularQueue), cudaMemcpyHostToDevice, stream0);
 
 
-	h_index_A->cpuInit(p_config, h_cell, h_arr_cell, d_obs_pool, \
-			d_arr_bkts, d_arr_idx_bkt, len_arr_bkts, d_avail_bkt, 0);
-	h_index_B->cpuInit(p_config, h_cell + p_config->edge_cell_num, h_arr_cell + tot_cells, \
-			d_obs_pool, d_arr_bkts, d_arr_idx_bkt, len_arr_bkts, d_avail_bkt + tot_cells, tot_cells);
+    h_index_A->cpuInit(p_config, h_cell, h_arr_cell, d_obs_pool, \
+            d_arr_bkts, d_arr_idx_bkt, len_arr_bkts, d_avail_bkt, 0);
+    h_index_B->cpuInit(p_config, h_cell + p_config->edge_cell_num, h_arr_cell + tot_cells, \
+            d_obs_pool, d_arr_bkts, d_arr_idx_bkt, len_arr_bkts, d_avail_bkt + tot_cells, tot_cells);
 
-	cout << "Checking Grid..." << endl;
-	cout << "Idx: " << h_index_A->cell[p_config->edge_cell_num / 2][p_config->edge_cell_num / 2].idx << "  " << \
-			"Obs: " << h_index_B->cell[p_config->edge_cell_num / 2][p_config->edge_cell_num / 2].tot_obs << "  " << \
-			"Subgrid: " << h_index_B->cell[p_config->edge_cell_num / 2][p_config->edge_cell_num / 2].subgrid << "  " << \
-			"xmin: " <<h_index_B->cell[p_config->edge_cell_num / 2][p_config->edge_cell_num / 2].rect.xmin << "  " << \
-			endl;
+    cout << "Checking Grid..." << endl;
+    cout << "Idx: " << h_index_A->cell[p_config->edge_cell_num / 2][p_config->edge_cell_num / 2].idx << "  " << \
+            "Obs: " << h_index_B->cell[p_config->edge_cell_num / 2][p_config->edge_cell_num / 2].tot_obs << "  " << \
+            "Subgrid: " << h_index_B->cell[p_config->edge_cell_num / 2][p_config->edge_cell_num / 2].subgrid << "  " << \
+            "xmin: " << h_index_B->cell[p_config->edge_cell_num / 2][p_config->edge_cell_num / 2].rect.xmin << "  " << \
+            endl;
 
-	h_index_A->getDevicePointer(d_cell, d_arr_cell);
-	h_index_B->getDevicePointer(d_cell + p_config->edge_cell_num, d_arr_cell + tot_cells);
+    h_index_A->getDevicePointer(d_cell, d_arr_cell);
+    h_index_B->getDevicePointer(d_cell + p_config->edge_cell_num, d_arr_cell + tot_cells);
 //	h_index_A->adjustPointer();
 //	h_index_B->adjustPointer();
 
-	// Caution!!! h_cell only used for initialzaion on CPU, should not be loaded to GPUs !!!
-	//cudaMemcpyAsync(d_cell, h_cell, sizeof(Cell *) * p_config->edge_cell_num * 2, \
+    // Caution!!! h_cell only used for initialzaion on CPU, should not be loaded to GPUs !!!
+    //cudaMemcpyAsync(d_cell, h_cell, sizeof(Cell *) * p_config->edge_cell_num * 2, \
 	//				cudaMemcpyHostToDevice, stream0);
-	cudaMemcpyAsync(d_arr_cell, h_arr_cell, sizeof(Cell) * p_config->edge_cell_num * p_config->edge_cell_num * 2, \
-		cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(d_arr_cell, h_arr_cell, sizeof(Cell) * p_config->edge_cell_num * p_config->edge_cell_num * 2, \
+        cudaMemcpyHostToDevice, stream0);
 
-	cudaMemcpyAsync(d_index_A, h_index_A, sizeof(Grid), cudaMemcpyHostToDevice, stream0);
-	cudaMemcpyAsync(d_index_B, h_index_B, sizeof(Grid), cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(d_index_A, h_index_A, sizeof(Grid), cudaMemcpyHostToDevice, stream0);
+    cudaMemcpyAsync(d_index_B, h_index_B, sizeof(Grid), cudaMemcpyHostToDevice, stream0);
 
-	
-	UpdateTypeForSort* d_array_i_forsort;
-	int array_i_forsort_len = p_config->edge_cell_num *p_config->edge_cell_num * p_config->len_seg_cache_update;
-	int ret = cudaMalloc((void**)&d_array_i_forsort, sizeof(UpdateTypeForSort)*array_i_forsort_len);
-	if(ret!= 0){
-		cout<<"d_array_i_forsort error";
-	}
-	UpdateTypeForSort* h_array_i_forsort = new UpdateTypeForSort[array_i_forsort_len];
-	memset(h_array_i_forsort, 0, sizeof(UpdateTypeForSort)*array_i_forsort_len);
-	cudaMemcpyAsync(d_array_i_forsort, h_array_i_forsort, sizeof(UpdateTypeForSort) * array_i_forsort_len, cudaMemcpyHostToDevice, stream0);
 
-	//int * d_each_anchor_cnt;
-	//Malloc((void**) d_each_anchor_cnt, sizeof(int)*3*1024);
+    UpdateTypeForSort *d_array_i_forsort;
+    int array_i_forsort_len = p_config->edge_cell_num * p_config->edge_cell_num * p_config->len_seg_cache_update;
+    int ret = cudaMalloc((void **) &d_array_i_forsort, sizeof(UpdateTypeForSort) * array_i_forsort_len);
+    if (ret != 0) {
+        cout << "d_array_i_forsort error";
+    }
+    UpdateTypeForSort *h_array_i_forsort = new UpdateTypeForSort[array_i_forsort_len];
+    memset(h_array_i_forsort, 0, sizeof(UpdateTypeForSort) * array_i_forsort_len);
+    cudaMemcpyAsync(d_array_i_forsort, h_array_i_forsort, sizeof(UpdateTypeForSort) * array_i_forsort_len,
+                    cudaMemcpyHostToDevice, stream0);
 
-	// ------------------------------------------------------------------------------------
-	cout << endl << "--- Launching Kernels ---" << endl;
+    //int * d_each_anchor_cnt;
+    //Malloc((void**) d_each_anchor_cnt, sizeof(int)*3*1024);
 
-	cout << "DistributorKernel()... " << endl;
-	cudaEventRecord(start0, stream0);
-	DistributorKernel<<<p_config->block_analysis_num, p_config->thread_analysis_num, 0, stream0>>>\
-			(dev_p_config, dev_buffer_update, dev_cnt_update, dev_buffer_query, dev_cnt_query, \
-			d_obs_pool, d_cols_bkt *  d_rows_bkt, d_sie_array, d_req_cache_update, d_req_cache_query, \
-			d_index_A, d_index_B, d_cell, d_arr_cell, d_queue_bkts_free, d_array_i_forsort);
-	cudaEventRecord(stop0, stream0);
+    // ------------------------------------------------------------------------------------
+    cout << endl << "--- Launching Kernels ---" << endl;
 
-	cout << "UpdateKernel()... " << endl;
-	cudaEventRecord(start1, stream1);
-	UpdateKernel<<<p_config->block_update_num, p_config->thread_update_num, 0, stream1>>>(dev_p_config);
-	cudaEventRecord(stop1, stream1);
+    cout << "DistributorKernel()... " << endl;
+    cudaEventRecord(start0, stream0);
+    DistributorKernel << < p_config->block_analysis_num, p_config->thread_analysis_num, 0, stream0 >> > \
+            (dev_p_config, dev_buffer_update, dev_cnt_update, dev_buffer_query, dev_cnt_query, \
+            d_obs_pool, d_cols_bkt * d_rows_bkt, d_sie_array, d_req_cache_update, d_req_cache_query, \
+            d_index_A, d_index_B, d_cell, d_arr_cell, d_queue_bkts_free, d_array_i_forsort);
+    cudaEventRecord(stop0, stream0);
 
-	cout << "QueryKernel()... " << endl<<endl;
-	cudaEventRecord(start2, stream2);
-	QueryKernel<<<p_config->block_query_num, p_config->thread_query_num, 0, stream2>>>(d_obs_output, d_cnt_obs_per_req);
-	cudaEventRecord(stop2, stream2);
-	
-	//cout << "BusyKernel()... " << endl<<endl;
-	//BusyKernel<<<p_config->block_busy_num, p_config->thread_busy_num, 0, stream3>>>();
+    cout << "UpdateKernel()... " << endl;
+    cudaEventRecord(start1, stream1);
+    UpdateKernel << < p_config->block_update_num, p_config->thread_update_num, 0, stream1 >> > (dev_p_config);
+    cudaEventRecord(stop1, stream1);
 
-	//cudaDeviceSynchronize();
+    cout << "QueryKernel()... " << endl << endl;
+    cudaEventRecord(start2, stream2);
+    QueryKernel << < p_config->block_query_num, p_config->thread_query_num, 0, stream2 >> >
+                                                                               (d_obs_output, d_cnt_obs_per_req);
+    cudaEventRecord(stop2, stream2);
 
-	cudaEventSynchronize(stop0);
-	cudaEventSynchronize(stop1);
-	cudaEventSynchronize(stop2);
+    //cout << "BusyKernel()... " << endl<<endl;
+    //BusyKernel<<<p_config->block_busy_num, p_config->thread_busy_num, 0, stream3>>>();
 
-	cudaMemcpyAsync(complete_cnt_update, dev_cnt_update, sizeof(int), cudaMemcpyDeviceToHost, stream0);
-	cudaMemcpyAsync(complete_cnt_query, dev_cnt_query, sizeof(int), cudaMemcpyDeviceToHost, stream0);
-	cudaMemcpyAsync(cnt_obs_per_req, d_cnt_obs_per_req, sizeof(int) * p_config->max_query_num, \
-			cudaMemcpyDeviceToHost, stream2);
+    //cudaDeviceSynchronize();
 
-	cudaStreamSynchronize(stream0);
-	cudaStreamSynchronize(stream1);
-	cudaStreamSynchronize(stream2);
-	 cudaStreamSynchronize(stream3);
+    cudaEventSynchronize(stop0);
+    cudaEventSynchronize(stop1);
+    cudaEventSynchronize(stop2);
 
-	cudaEventElapsedTime(&elapsed0, start0, stop0);
-	cudaEventElapsedTime(&elapsed1, start1, stop1);
-	cudaEventElapsedTime(&elapsed2, start2, stop2);
+    cudaMemcpyAsync(complete_cnt_update, dev_cnt_update, sizeof(int), cudaMemcpyDeviceToHost, stream0);
+    cudaMemcpyAsync(complete_cnt_query, dev_cnt_query, sizeof(int), cudaMemcpyDeviceToHost, stream0);
+    cudaMemcpyAsync(cnt_obs_per_req, d_cnt_obs_per_req, sizeof(int) * p_config->max_query_num, \
+            cudaMemcpyDeviceToHost, stream2);
 
-	cout << endl << "Updates: " << *complete_cnt_update << "\tQueries: " << *complete_cnt_query << endl;
+    cudaStreamSynchronize(stream0);
+    cudaStreamSynchronize(stream1);
+    cudaStreamSynchronize(stream2);
+    cudaStreamSynchronize(stream3);
 
-	cout << endl << "Freeing memory ..." << endl;
-	cudaFreeHost(complete_cnt_update);
-	cudaFreeHost(complete_cnt_query);
-	cudaFreeHost(pinned_buffer_update);
-	cudaFreeHost(pinned_buffer_query);
-	cudaFreeHost(h_obs_pool);
-	cudaFreeHost(h_sie_array);
-	cudaFreeHost(h_req_cache_update);
-	cudaFreeHost(h_req_cache_query);
-	cudaFreeHost(h_arr_cell);
-	cudaFreeHost(h_index_A);
-	cudaFreeHost(h_index_B);
-	cudaFreeHost(h_queue_bkts_free);
-	cudaFree(dev_p_config);
-	cudaFree(dev_buffer_update);
-	cudaFree(dev_buffer_query);
-	cudaFree(dev_cnt_update);
-	cudaFree(dev_cnt_query);
+    cudaEventElapsedTime(&elapsed0, start0, stop0);
+    cudaEventElapsedTime(&elapsed1, start1, stop1);
+    cudaEventElapsedTime(&elapsed2, start2, stop2);
 
-	cout << endl << "=== Time Report ===" << endl;
-	cout << "Distributor Kernel: " << elapsed0  << " ms" << endl;
-	cout << "Update Kernel: " << elapsed1  << " ms" << endl;
-	cout << "Query Kernel: " << elapsed2  << " ms" << endl;
+    cout << endl << "Updates: " << *complete_cnt_update << "\tQueries: " << *complete_cnt_query << endl;
 
-	cout << endl << "Objects of each query..." << endl;
-	for (int i = p_config->max_query_num * 3 / 4 , tick = 0; i < p_config->max_query_num; i++)
-	{
-		if (cnt_obs_per_req[i] != 0)
-		{
-			cout << cnt_obs_per_req[i] * 2 << " ";
-			tick++;
-		}
-		if (tick == 32)
-		{
-			break;
-		}
-	}
-	cout << endl;
+    cout << endl << "Freeing memory ..." << endl;
+    cudaFreeHost(complete_cnt_update);
+    cudaFreeHost(complete_cnt_query);
+    cudaFreeHost(pinned_buffer_update);
+    cudaFreeHost(pinned_buffer_query);
+    cudaFreeHost(h_obs_pool);
+    cudaFreeHost(h_sie_array);
+    cudaFreeHost(h_req_cache_update);
+    cudaFreeHost(h_req_cache_query);
+    cudaFreeHost(h_arr_cell);
+    cudaFreeHost(h_index_A);
+    cudaFreeHost(h_index_B);
+    cudaFreeHost(h_queue_bkts_free);
+    cudaFree(dev_p_config);
+    cudaFree(dev_buffer_update);
+    cudaFree(dev_buffer_query);
+    cudaFree(dev_cnt_update);
+    cudaFree(dev_cnt_query);
 
-	cudaStreamDestroy(stream0);
-	cudaStreamDestroy(stream1);
-	cudaStreamDestroy(stream2);
-	cudaStreamDestroy(stream3);
+    cout << endl << "=== Time Report ===" << endl;
+    cout << "Distributor Kernel: " << elapsed0 << " ms" << endl;
+    cout << "Update Kernel: " << elapsed1 << " ms" << endl;
+    cout << "Query Kernel: " << elapsed2 << " ms" << endl;
 
-	cout << endl << "Done!!!" << endl;
+    cout << endl << "Objects of each query..." << endl;
+    for (int i = p_config->max_query_num * 3 / 4, tick = 0; i < p_config->max_query_num; i++) {
+        if (cnt_obs_per_req[i] != 0) {
+            cout << cnt_obs_per_req[i] * 2 << " ";
+            tick++;
+        }
+        if (tick == 32) {
+            break;
+        }
+    }
+    cout << endl;
+
+    cudaStreamDestroy(stream0);
+    cudaStreamDestroy(stream1);
+    cudaStreamDestroy(stream2);
+    cudaStreamDestroy(stream3);
+
+    cout << endl << "Done!!!" << endl;
 }
 
 

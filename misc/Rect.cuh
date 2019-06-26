@@ -13,25 +13,22 @@
 #define RECT_H_
 
 
-class Rect
-{
+class Rect {
 public:
-	float xmin;
-	float ymin;
-	float xmax;
-	float ymax;
+    float xmin;
+    float ymin;
+    float xmax;
+    float ymax;
     float height;
     float width;
 
 public:
-    Rect(void)
-    {
+    Rect(void) {
         xmin = ymin = xmax = ymax = 0;
         height = width = 0;
     }
 
-    Rect(float _xmin,float _ymin,float _xmax,float _ymax)
-    {
+    Rect(float _xmin, float _ymin, float _xmax, float _ymax) {
         xmin = _xmin;
         ymin = _ymin;
         xmax = _xmax;
@@ -40,14 +37,12 @@ public:
         width = xmax - xmin;
     }
 
-    ~Rect(void)
-    {
+    ~Rect(void) {
         ;
     }
 
     void setCoverArea(float _xmin, float _ymin, \
-    		float _xmax, float _ymax)
-    {
+            float _xmax, float _ymax) {
         xmin = _xmin;
         ymin = _ymin;
         xmax = _xmax;
@@ -56,18 +51,15 @@ public:
         width = xmax - xmin;
     }
 
-    __device__ float getCenterX()
-    {
+    __device__ float getCenterX() {
         return (xmin + xmax) / 2;
     }
 
-    __device__ float getCenterY()
-    {
+    __device__ float getCenterY() {
         return (ymin + ymax) / 2;
     }
 
-    __device__ bool isCovering(float x, float y)
-    {
+    __device__ bool isCovering(float x, float y) {
         if (x >= xmin && x <= xmax && y <= ymax && y >= ymin)
             return true;
         else

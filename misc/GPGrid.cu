@@ -13,7 +13,9 @@
 #include <string.h>
 
 #ifdef linux
+
 #include <pthread.h>
+
 #else
 
 #include <windows.h>
@@ -57,10 +59,11 @@ struct Message {
 };
 
 #ifdef linux
-void* copyData(void *m) {
+
+void *copyData(void *m) {
 #else
 
-DWORD WINAPI copyData(void *m) {
+    DWORD WINAPI copyData(void *m) {
 #endif
     Message *message = (Message *) m;
     int *d_map = message->d_map;

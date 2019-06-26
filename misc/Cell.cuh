@@ -16,12 +16,11 @@
 #include "ObjBox.cuh"
 #include "config/Config.h"
 
-class Cell
-{
+class Cell {
 public:
-	int idx;
+    int idx;
     int subgrid;
-	Rect rect;
+    Rect rect;
 
     int len_bkt;
     int idx_bkt_init;
@@ -31,7 +30,7 @@ public:
     int tot_obs_top;
     //ObjBox *obs;
 
-	int memfencedelay;
+    int memfencedelay;
 
     int len_arr_bkts;
     //ObjBox **arr_bkts;
@@ -41,18 +40,26 @@ public:
 public:
 
     Cell(void);
+
     ~Cell(void);
 
     void setIdx(int _idx);
+
     void setRect(Rect &_rect);
+
     void setSubgrid(int _subgrid);
+
     void initBucket(Config *p_config, ObjBox *d_obs_pool, \
-    		int *d_arr_idx_bkt, int _len_arr_bkts, int _offset_in_obs_pool, int _offset_in_arr_bkts_pool);
+            int *d_arr_idx_bkt, int _len_arr_bkts, int _offset_in_obs_pool, int _offset_in_arr_bkts_pool);
 
     __device__ void writeLock(void);
+
     __device__ void writeUnlock(void);
+
     __device__ void readLock(void);
+
     __device__ void readUnlock(void);
 
 };
+
 #endif /* CELL_H_ */

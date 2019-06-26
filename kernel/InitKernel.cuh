@@ -8,7 +8,7 @@
 #include<iostream>
 #include "device/DeviceGlobalVar.cuh"
 
-__global__ void InitKernel(GConfig *dev_p_gconfig, \
- 		ObjBox *d_obs_pool_A, ObjBox *d_obs_pool_B, SIEntry *d_sie_array, Grid *d_index_A, Grid *d_index_B, \
-		UpdateCacheArea *d_req_cache_update, QueryCacheArea *d_req_cache_query, \
-		CircularQueue *d_queue_bkts_free,  int* d_place_holder, ManagedMemory* d_mm, int* d_map);
+__global__ void InitKernel(GConfig * dev_p_gconfig, \
+        ObjBox * d_obs_pool_A, ObjBox * d_obs_pool_B, SIEntry * d_sie_array, Grid * d_index_A, Grid * d_index_B, \
+        UpdateCacheArea * d_req_cache_update, QueryCacheArea * d_req_cache_query, \
+        CircularQueue * d_queue_bkts_free, int * d_place_holder, ManagedMemory * d_mm, int * d_map);

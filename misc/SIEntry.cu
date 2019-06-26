@@ -12,8 +12,7 @@
 #include "SIEntry.cuh"
 
 
-SIEntry::SIEntry()
-{
+SIEntry::SIEntry() {
     idx_cell = -1;
     idx_bkt = -1;
     idx_obj = -1;
@@ -23,30 +22,24 @@ SIEntry::SIEntry()
 __device__ int memfence_delay_step = 5;//32step
 
 
-__device__ void SIEntry::init(void)
-{
+__device__ void SIEntry::init(void) {
 
 }
 
-__device__ void SIEntry::clear(void)
-{
+__device__ void SIEntry::clear(void) {
 
 }
 
 
-
-__device__ void SIEntry::rwLock()
-{
+__device__ void SIEntry::rwLock() {
 }
 
-__device__ void SIEntry::rwUnLock()
-{
+__device__ void SIEntry::rwUnLock() {
 
 }
 
-__device__ bool SIEntry::tryLock()
-{
-	return true;
+__device__ bool SIEntry::tryLock() {
+    return true;
 }
 
 

@@ -15,24 +15,22 @@
 #include "UpdateQNode.cuh"
 
 
-class UpdateCacheArea
-{
+class UpdateCacheArea {
 public:
-	int token0;
-	int token1;
-	int cnt0;
-	int cnt1;
-	UpdateQNode *array;
+    int token0;
+    int token1;
+    int cnt0;
+    int cnt1;
+    UpdateQNode *array;
 
 public:
-	__device__ UpdateCacheArea(void)
-	{
-		token0 = 0;
-		token1 = 0;
-		cnt0 = 0;
-		cnt1 = 0;
-		array = new UpdateQNode[2];
-	}
+    __device__ UpdateCacheArea(void) {
+        token0 = 0;
+        token1 = 0;
+        cnt0 = 0;
+        cnt1 = 0;
+        array = new UpdateQNode[2];
+    }
 
 };
 

@@ -20,28 +20,27 @@
 
 //using namespace __gnu_cxx;
 
-class SecIndex
-{
+class SecIndex {
 public:
     SIEntry *index;
 public:
-    __device__ SecIndex(void)
-    {
-    	index = NULL;
+    __device__ SecIndex(void) {
+        index = NULL;
     }
-    __device__ ~SecIndex(void)
-    {
+
+    __device__ ~SecIndex(void) {
 //    	delete[] index;
     }
 
 
-    __device__ SIEntry *getPtrSIE(int oid)
-    {
+    __device__ SIEntry
+    *
+
+    getPtrSIE(int oid) {
         return &index[oid];
     }
 
-    __device__ void clear()
-    {
+    __device__ void clear() {
 //        index.clear();
     }
 };

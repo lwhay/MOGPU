@@ -15,10 +15,9 @@
 #include "misc/BaseStruct.h"
 #include "misc/Cell.cuh"
 
-typedef struct _tag_update_entity_
-{
+typedef struct _tag_update_entity_ {
     UpdateType update_ins;
     Cell *p_cell;
-}UpdateEntity;
+} UpdateEntity;
 
 #endif /* DERIVESTRUCT_H_ */

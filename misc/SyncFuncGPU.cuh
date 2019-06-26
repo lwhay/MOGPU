@@ -13,7 +13,9 @@
 #define SYNCFUNCGPU_H_
 
 __device__ void sync_func_query(void);
+
 __device__ void sync_func_update(void);
+
 __device__ void sync_func_dist(void);
 
 #endif /* SYNCFUNCGPU_H_ */

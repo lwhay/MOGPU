@@ -33,18 +33,30 @@ extern __device__ int gp_config_ready;
 
 // update request queues & query request queues
 //extern __device__ QueryQueue *query_req_queue;
-extern __device__ UpdateCacheArea *req_cache_update;
+extern __device__ UpdateCacheArea
+*
+req_cache_update;
 extern __device__ int *update_map;
 
-extern __device__ QueryCacheArea *req_cache_query;
+extern __device__ QueryCacheArea
+*
+req_cache_query;
 extern __device__ int cnt_enqueue_update;
 extern __device__ int cnt_dequeue_update;
 extern __device__ int cnt_enqueue_query;
 extern __device__ int cnt_dequeue_query;
-extern __device__ UpdateQNode *node_dequeue_update;
-extern __device__ UpdateQNode *node_enqueue_update;
-extern __device__ QueryQNode *node_dequeue_query;
-extern __device__ QueryQNode *node_enqueue_query;
+extern __device__ UpdateQNode
+*
+node_dequeue_update;
+extern __device__ UpdateQNode
+*
+node_enqueue_update;
+extern __device__ QueryQNode
+*
+node_dequeue_query;
+extern __device__ QueryQNode
+*
+node_enqueue_query;
 
 //extern __device__ UpdateTypeForSort* array_i_forsort;
 //extern __device__ int array_forsort_cnt;
@@ -57,10 +69,18 @@ extern __device__ QueryQNode *node_enqueue_query;
 
 
 // Global variables for GPGrid
-extern __device__ Grid *index_A;
-extern __device__ Grid *index_B;
-extern __device__ SecIndex *sec_index_A;
-extern __device__ SecIndex *sec_index_B;
+extern __device__ Grid
+*
+index_A;
+extern __device__ Grid
+*
+index_B;
+extern __device__ SecIndex
+*
+sec_index_A;
+extern __device__ SecIndex
+*
+sec_index_B;
 extern __device__ int flag_switch_version;
 extern __device__ int seg_switch_version;
 extern __device__ int query_switch_version;
@@ -68,7 +88,9 @@ extern __device__ int query_switch_version;
 extern __device__ volatile int flag_switch_dist;
 extern __device__ volatile int flag_switch_update;
 extern __device__ volatile int flag_switch_query;
-extern __device__ ManagedMemory* DMM;
+extern __device__ ManagedMemory
+*
+DMM;
 
 
 // sync signals
@@ -113,7 +135,9 @@ extern __device__ int exp_hunger_update_old;
 // Grid
 extern __device__ int exp_idx_x_subgrid_a;
 extern __device__ int exp_idx_x_subgrid_b;
-extern __device__ CircularQueue *queue_bkts_free;
+extern __device__ CircularQueue
+*
+queue_bkts_free;
 
 //extern __device__ int g_len_seg_cache_query;
 
@@ -125,15 +149,15 @@ extern __device__ int cnt_singular;
 
 extern __device__ int check_dist_query;
 
-extern __device__ int* place_holder_update;
-extern __device__ int* sync_holder_update;
-extern __device__ int* place_holder_query;
+extern __device__ int *place_holder_update;
+extern __device__ int *sync_holder_update;
+extern __device__ int *place_holder_query;
 
-extern __device__ int* place_holder_query_dispatch;
-extern __device__ int* sync_holder_query_dispatch;
-extern __device__ int* cache_memory_idx_query_dispatch;
+extern __device__ int *place_holder_query_dispatch;
+extern __device__ int *sync_holder_query_dispatch;
+extern __device__ int *cache_memory_idx_query_dispatch;
 
-extern __device__ int* place_holder_update_dispatch;
+extern __device__ int *place_holder_update_dispatch;
 
 
 extern __device__ int cnt_over_seg_update;
@@ -150,7 +174,6 @@ extern __device__ long long int query_sumtime;
 extern __device__ long long int update_sumtime;
 extern __device__ long long int distribute_sumtime;
 extern __device__ long long int copytime;
-
 
 
 extern __device__ int cursor_distribute_wrap;
@@ -178,7 +201,7 @@ extern __device__ int cnt_malloc_obj_pool;
 extern __device__ int cnt_free_obj_pool;
 
 
-extern __device__ int* multiqueue;
+extern __device__ int *multiqueue;
 #else
 extern "C" __device__ int gp_config_ready;
 
