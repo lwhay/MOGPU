@@ -16,7 +16,7 @@
 // 0:	Enable dynamic memory allocation
 // 1:	Fixed-size memory allocation
 #ifndef SEG_CACHE
-#define SEG_CACHE 1
+#define SEG_CACHE 0
 #endif
 
 #ifndef SHARE_MEM
