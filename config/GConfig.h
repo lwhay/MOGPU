@@ -14,11 +14,10 @@
 
 #include "misc/BaseStruct.h"
 
-typedef struct _tag_g_config_
-{
+typedef struct _tag_g_config_ {
     int period_len;                 //统计周期时长
     int period_num;                 //统计周期个数
-	// region
+    // region
     float region_xmin;
     float region_xmax;
     float region_ymin;
@@ -31,21 +30,21 @@ typedef struct _tag_g_config_
     int gaussian_data;              //是否使用高斯分布的数据
     int uniform_data;               //是否使用均匀分布的数据
     int hotspot_num;                //使用高斯分布时热点个数
-	//cell
+    //cell
     int edge_cell_num;              //单边cell数量
     //_struct
     int max_bucket_len;   // >32!!!          //bkt最大长度
     int buffer_block_size;          //分析段长度
-	//thread
+    //thread
     int block_analysis_num;
     int thread_analysis_num;        //分析线程数量
     int block_update_num;
     int thread_update_num;          //更新线程数量
     int block_query_num;           //
-	int thread_query_num;           //查询线程数量
-	int block_busy_num;
-	int thread_busy_num;
-	//scheme
+    int thread_query_num;           //查询线程数量
+    int block_busy_num;
+    int thread_busy_num;
+    //scheme
     int single_stream_mutual_access;    //单数据流互斥访问
     int single_stream_para_access;    //单数据流并行访问
     //int multi_stream_parall_access;      //多数据流并行访问
@@ -59,23 +58,27 @@ typedef struct _tag_g_config_
     int len_seg_cache_query;
 
     int len_seg_multiqueue;
-	int len_multiqueue;
-	int qt_size;
+    int len_multiqueue;
+    int qt_size;
 
-	int clockRate;
-	int len_arr_bkts_max;
-	int buffer_update_round;
+    int clockRate;
+    int len_arr_bkts_max;
+    int buffer_update_round;
 
-	int terminalFlag;
-}GConfig;
+    int terminalFlag;
+} GConfig;
 
 extern GConfig *host_p_config;
 extern GConfig *dev_p_config;
 // config information on GPU
-extern __device__  GConfig *gp_config;
+extern __device__ GConfig
+*
+gp_config;
 
-__global__ void copyKernel(GConfig *dev_p_gconfig);
+__global__ void copyKernel(GConfig * dev_p_gconfig);
+
 void initHostGConfig(void);
+
 int get_GPU_Rate(void);
 
 
