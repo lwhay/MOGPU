@@ -491,7 +491,7 @@ __global__ void DistributorKernel(GConfig *dev_p_gconfig,
 				atomicExch(&fqueue_local->rear, 0);
 			}
 		}
-#if CHECK_SI==1		
+#if CHECK_SI==1
 		if (tid_b == 0)
 			while (local_seci->index[p_config->max_obj_num].idx_cell != -1)
 				;
@@ -507,10 +507,10 @@ __global__ void DistributorKernel(GConfig *dev_p_gconfig,
 		}
 		__syncthreads();
 
-#if CHECK_SI==1				
+#if CHECK_SI==1
 		atomicExch(&(local_seci->index[p_config->max_obj_num].idx_cell),
 				p_config->max_obj_num);
-#endif		
+#endif
 		int* mtx_idx;
 		fqueue_local = node_enqueue_update->fqueue_delete;
 		mtx_idx = node_enqueue_update->mtx_delete_idx;
@@ -1683,10 +1683,17 @@ __global__ void DistributorKernel(GConfig *dev_p_gconfig,
 		__syncthreads();
 
 #else
+		//lwh
+        MemElementCollection<int> *local_node_q =
+                node_enqueue_query->mtx_query_nodes;
+        /*CircularQueue *local_fqueue_q = node_enqueue_query->fqueue_query;*/
+        int anchor_idx;
 		anchor = tid;
 		while (anchor < buffer_block_size_query)
 		{
 			req_query = p_buffer_block_query[anchor];
+			//lwh
+			anchor_idx = d_qd_anchor_local[anchor];
 
 			xmin = req_query.minX;
 			ymin = req_query.minY;
@@ -1704,18 +1711,20 @@ __global__ void DistributorKernel(GConfig *dev_p_gconfig,
 			row_end = left_bottom / cell_num;
 			col_start = left_bottom % cell_num;
 
+            anchor_idx = atomicAdd(&cnt_distribute_wrap, 1);
+
 			int cellNum = (row_end-row_start+1)*(col_end-col_start+1);
 			int count = cellNum/QUEUE_SEG_LEN + 1;
 			if(count >= MQUEUE_SIZE)
 			{	printf("count over MQUEUE_SIZE\n");continue;}
-#if IGNORE_CNT==0			
+#if IGNORE_CNT==0
 			atomicAdd(multiqueue+count,1);
 #endif
 
 #if USE_DPPROCESS==1
 			DpProcess<<<1, cellNum>>>(place_holder_query_dispatch_local, anchor, row_start, row_end, col_start, col_end, dev_p_gconfig, node_enqueue_query);
 			cudaDeviceSynchronize();
-#else 
+#else
 			for(int k = 0; k < cellNum; k++)
 			{
 				int i = row_start + k/(col_end-col_start+1);
@@ -1795,7 +1804,7 @@ __global__ void DistributorKernel(GConfig *dev_p_gconfig,
 					}
 				}
 			}
-#endif	
+#endif
 			buffer_block_query[anchor] = req_query;
 			check_dist_query_local++;
 

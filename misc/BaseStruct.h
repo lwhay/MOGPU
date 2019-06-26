@@ -16,7 +16,7 @@
 // 0:	Enable dynamic memory allocation
 // 1:	Fixed-size memory allocation
 #ifndef SEG_CACHE
-#define SEG_CACHE 0
+#define SEG_CACHE 1
 #endif
 
 #ifndef SHARE_MEM
@@ -50,7 +50,7 @@
 // 1:	Enable multi-level queue
 // 0:	Disable multi-level queue
 #ifndef USE_MULTIQUEUE
-#define USE_MULTIQUEUE 1
+#define USE_MULTIQUEUE 0
 #endif
 
 #ifndef USE_DPPROCESS
