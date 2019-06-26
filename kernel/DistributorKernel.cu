@@ -1559,7 +1559,7 @@ __global__ void DistributorKernel(GConfig * dev_p_gconfig,
 #else
         //lwh
         MemElementCollection<int> *local_node_q = node_enqueue_query->mtx_query_nodes;
-        /*CircularQueue *local_fqueue_q = node_enqueue_query->fqueue_query;*/
+        CircularQueue * local_fqueue_q = node_enqueue_query->fqueue_query;
         int anchor_idx;
         anchor = tid;
         while (anchor < buffer_block_size_query) {
